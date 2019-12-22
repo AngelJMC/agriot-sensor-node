@@ -40,7 +40,7 @@
 
 #define DHTPIN 2     // what pin we're connected to
 #define DHTTYPE DHT22   // DHT 22  (AM2302)
-
+#define DSPIN 3
 
 // These callbacks are only used in over-the-air activation, so they are
 // left empty here (we cannot leave them out completely unless
@@ -53,37 +53,14 @@ void do_send(osjob_t* j);
 static uint8_t mydata[] = { 0,0,0,0,0,0,0,0};
 static osjob_t sendjob;
 
-OneWire  ds(3);  // on pin 10 (a 4.7K resistor is necessary)
+OneWire  ds( DSPIN );  // on pin 10 (a 4.7K resistor is necessary)
+DHT dht( DHTPIN, DHTTYPE );
 
 // Schedule TX every this many seconds (might become longer due to duty
 // cycle limitations).
 const unsigned TX_INTERVAL = 60;
 
 CayenneLPP lpp(51);
-
-
-// Pin mapping
-//const lmic_pinmap lmic_pins = {
-//    .nss = 6,
-//    .rxtx = LMIC_UNUSED_PIN,
-//    .rst = 5,
-//    .dio = {2, 3, 4},
-//};
-
-//const lmic_pinmap lmic_pins = {
-//    .nss = 8,
-//    .rxtx = LMIC_UNUSED_PIN,
-//    .rst = 4,
-//    .dio = {3, 6, 11},
-//};
-
-//Leonardo
-//const lmic_pinmap lmic_pins = {
-//    .nss = 8,
-//    .rxtx = LMIC_UNUSED_PIN,
-//    .rst = 4,
-//    .dio = {7, 6, LMIC_UNUSED_PIN},
-//};
 
 //Maping for IOTMCU arduino pro MINI
 const lmic_pinmap lmic_pins = {
@@ -92,6 +69,9 @@ const lmic_pinmap lmic_pins = {
     .rst = 9,
     .dio = {2, 7, LMIC_UNUSED_PIN},
 };
+
+float h = 0;
+float t = 0;
 
 void onEvent (ev_t ev) {
     Serial.print(os_getTime());
@@ -158,8 +138,99 @@ void onEvent (ev_t ev) {
     }
 }
 
-float h = 0;
-float t = 0;
+struct dssens {
+  byte present = 0;
+  byte type_s;
+  byte data[12];
+  byte addr[8];
+};
+
+static dssens ds_hdl;
+
+static void ds_init( struct dssens* ds_hdl ) {
+    if ( !ds.search(ds_hdl->addr)) {
+      Serial.println("No more addresses.");
+      Serial.println();
+      ds.reset_search();
+      delay(250);
+      return;
+    }
+    
+    if (OneWire::crc8(ds_hdl->addr, 7) != ds_hdl->addr[7]) {
+        Serial.println("CRC is not valid!");
+        return;
+    }
+  
+    // the first ROM byte indicates which chip
+    switch (ds_hdl->addr[0]) {
+      case 0x10:
+        Serial.println("  Chip = DS18S20");  // or old DS1820
+        ds_hdl->type_s = 1;
+        break;
+      case 0x28:
+        Serial.println("  Chip = DS18B20");
+        ds_hdl->type_s = 0;
+        break;
+      case 0x22:
+        Serial.println("  Chip = DS1822");
+        ds_hdl->type_s = 0;
+        break;
+      default:
+        Serial.println("Device is not a DS18x20 family device.");
+        return;
+    } 
+}
+
+static float ds_readTemperature( struct dssens* ds_hdl ) {
+    ds.reset();
+    ds.select( ds_hdl->addr );
+    ds.write(0x44, 1);        // start conversion, with parasite power on at the end
+
+    delay(1000);
+
+    ds_hdl->present = ds.reset();
+    ds.select( ds_hdl->addr );    
+    ds.write( 0xBE );         // Read Scratchpad
+
+    //Serial.print("  Data = ");
+    //Serial.print(present, HEX);
+    //Serial.print(" ");
+    for ( byte i = 0; i < 9; i++) {           // we need 9 bytes
+      ds_hdl->data[i] = ds.read();
+      //Serial.print(data[i], HEX);
+      //Serial.print(" ");
+    }
+    //Serial.print(" CRC=");
+    //Serial.print(OneWire::crc8(data, 8), HEX);
+    //Serial.println();
+
+    // Convert the data to actual temperature
+    // because the result is a 16 bit signed integer, it should
+    // be stored to an "int16_t" type, which is always 16 bits
+    // even when compiled on a 32 bit processor.
+    int16_t raw = ( ds_hdl->data[1] << 8) | ds_hdl->data[0];
+    if ( ds_hdl->type_s ) {
+      raw = raw << 3; // 9 bit resolution default
+      if ( ds_hdl->data[7] == 0x10 ) {
+        // "count remain" gives full 12 bit resolution
+        raw = (raw & 0xFFF0) + 12 - ds_hdl->data[6];
+      }
+    } else {
+      byte cfg = ( ds_hdl->data[4] & 0x60 );
+      // at lower res, the low bits are undefined, so let's zero them
+      if (cfg == 0x00) raw = raw & ~7;  // 9 bit resolution, 93.75 ms
+      else if (cfg == 0x20) raw = raw & ~3; // 10 bit res, 187.5 ms
+      else if (cfg == 0x40) raw = raw & ~1; // 11 bit res, 375 ms
+      //// default is 12 bit resolution, 750 ms conversion time
+    }
+    return (float)raw / 16.0;
+    //fahrenheit = celsius * 1.8 + 32.0;
+    //Serial.print("  Temperature = ");
+    //Serial.print(celsius);
+    //Serial.print(" Celsius, ");
+    //Serial.print(fahrenheit);
+    //Serial.println(" Fahrenheit");
+}
 
 
 void do_send(osjob_t* j){
@@ -168,34 +239,23 @@ void do_send(osjob_t* j){
         Serial.println(F("OP_TXRXPEND, not sending"));
     } else {
         // Prepare data transmission at the next possible time.
-        //LMIC_setTxData2(1, mydata, sizeof(mydata)-1, 0);
-        //LMIC_setTxData2(1,(uint8_t*)&t,sizeof(t),0);
         LMIC_setTxData2(1, mydata, strlen((char*) mydata), 0);
     }
 }
 
-DHT dht(DHTPIN, DHTTYPE);
 
 void setup() {
   
     Serial.begin(115200);
-    //while (!Serial);
     Serial.println(F("Starting"));
 
     dht.begin();
 
-
-Serial.println("Test");
-
-
     // LMIC init
     os_init();
 
-    Serial.println("Test2");
     // Reset the MAC state. Session and pending data transfers will be discarded.
     LMIC_reset();
-
-    Serial.println("Test3");
 
     // Set static session parameters. Instead of dynamically establishing a session
     // by joining the network, precomputed session parameters are be provided.
@@ -213,7 +273,7 @@ Serial.println("Test");
     LMIC_setSession (0x1, DEVADDR, NWKSKEY, APPSKEY);
     #endif
 
-    #if defined(CFG_eu868)
+    #if defined( CFG_eu868 )
     // Set up the channels used by the Things Network, which corresponds
     // to the defaults of most gateways. Without this, only three base
     // channels from the LoRaWAN specification are used, which certainly
@@ -236,7 +296,7 @@ Serial.println("Test");
     // devices' ping slots. LMIC does not have an easy way to define set this
     // frequency and support for class B is spotty and untested, so this
     // frequency is not configured here.
-    #elif defined(CFG_us915)
+    #elif defined( CFG_us915 )
     // NA-US channels 0-71 are configured automatically
     // but only one group of 8 should (a subband) should be active
     // TTN recommends the second sub band, 1 in a zero based count.
@@ -245,19 +305,18 @@ Serial.println("Test");
     #endif
 
     // Disable link check validation
-    LMIC_setLinkCheckMode(0);
+    LMIC_setLinkCheckMode( 0 );
 
     // TTN uses SF9 for its RX2 window.
     LMIC.dn2Dr = DR_SF9;
 
     // Set data rate and transmit power for uplink (note: txpow seems to be ignored by the library)
-    LMIC_setDrTxpow(DR_SF7,14);
+    LMIC_setDrTxpow( DR_SF7, 14 );
 
- 
-
+    ds_init( &ds_hdl );
 
     // Start job
-    //do_send(&sendjob);
+    //do_send( &sendjob );
 }
 
 
@@ -266,222 +325,45 @@ int i = 30;
 void loop() {
   os_runloop_once();
 
-  byte present = 0;
-  byte type_s;
-  byte data[12];
-  byte addr[8];
-  float celsius;
-  
-  if ( !ds.search(addr)) {
-    //Serial.println("No more addresses.");
-    //Serial.println();
-    ds.reset_search();
-    delay(250);
-    return;
-  }
-  
-  #if 0
-  Serial.print("ROM =");
-  for( byte i = 0; i < 8; i++) {
-    Serial.write(' ');
-    Serial.print(addr[i], HEX);
-  }
-  #endif
+  delay( 1000 );
 
-  if (OneWire::crc8(addr, 7) != addr[7]) {
-      Serial.println("CRC is not valid!");
-      return;
-  }
-  //Serial.println();
- 
-  // the first ROM byte indicates which chip
-  switch (addr[0]) {
-    case 0x10:
-      //Serial.println("  Chip = DS18S20");  // or old DS1820
-      type_s = 1;
-      break;
-    case 0x28:
-      //Serial.println("  Chip = DS18B20");
-      type_s = 0;
-      break;
-    case 0x22:
-      //Serial.println("  Chip = DS1822");
-      type_s = 0;
-      break;
-    default:
-      Serial.println("Device is not a DS18x20 family device.");
-      return;
+  if (i == 30) {
+      // Reading temperature or humidity takes about 250 milliseconds!
+      // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
+      h = 50.0;//dht.readHumidity();
+      // Read temperature as Celsius
+      t = ds_readTemperature( &ds_hdl );
+    
+      // Check if any reads failed and exit early (to try again).
+      if (isnan(h) || isnan(t)) {
+          Serial.println("Failed to read from DHT sensor!");    
+      }
+      else {
+          Serial.print("Humidity: "); 
+          Serial.print(h);
+          Serial.print(" %\t");
+          Serial.print("Temperature: "); 
+          Serial.print(t);
+          Serial.println(" *C ");
+          Serial.println("Do Send");
+
+          // Con cayenne ----------------------------------------------------------
+          lpp.reset();
+          lpp.addTemperature(1, t);
+          lpp.addRelativeHumidity(2, h);
+
+          // Send it off
+          if (LMIC.opmode & OP_TXRXPEND) {
+              Serial.println(F("OP_TXRXPEND, not sending"));
+          } 
+          else {
+              // Prepare data transmission at the next possible time.
+              LMIC_setTxData2(1, lpp.getBuffer(), lpp.getSize(), 0);
+          }
+      }
+  i = 0;
   } 
 
-
-  ds.reset();
-  ds.select(addr);
-  ds.write(0x44, 1);        // start conversion, with parasite power on at the end
-
-
-
-delay(1000);
-
-
-  present = ds.reset();
-  ds.select(addr);    
-  ds.write(0xBE);         // Read Scratchpad
-
-  //Serial.print("  Data = ");
-  //Serial.print(present, HEX);
-  //Serial.print(" ");
-  for ( byte i = 0; i < 9; i++) {           // we need 9 bytes
-    data[i] = ds.read();
-    //Serial.print(data[i], HEX);
-    //Serial.print(" ");
-  }
-  //Serial.print(" CRC=");
-  //Serial.print(OneWire::crc8(data, 8), HEX);
-  //Serial.println();
-
-  // Convert the data to actual temperature
-  // because the result is a 16 bit signed integer, it should
-  // be stored to an "int16_t" type, which is always 16 bits
-  // even when compiled on a 32 bit processor.
-  int16_t raw = (data[1] << 8) | data[0];
-  if (type_s) {
-    raw = raw << 3; // 9 bit resolution default
-    if (data[7] == 0x10) {
-      // "count remain" gives full 12 bit resolution
-      raw = (raw & 0xFFF0) + 12 - data[6];
-    }
-  } else {
-    byte cfg = (data[4] & 0x60);
-    // at lower res, the low bits are undefined, so let's zero them
-    if (cfg == 0x00) raw = raw & ~7;  // 9 bit resolution, 93.75 ms
-    else if (cfg == 0x20) raw = raw & ~3; // 10 bit res, 187.5 ms
-    else if (cfg == 0x40) raw = raw & ~1; // 11 bit res, 375 ms
-    //// default is 12 bit resolution, 750 ms conversion time
-  }
-  celsius = (float)raw / 16.0;
-  //fahrenheit = celsius * 1.8 + 32.0;
-  //Serial.print("  Temperature = ");
-  //Serial.print(celsius);
-  //Serial.print(" Celsius, ");
-  //Serial.print(fahrenheit);
-  //Serial.println(" Fahrenheit");
-
-
-
-
-
-  
-
-if (i == 30)
-{
-
-    // Reading temperature or humidity takes about 250 milliseconds!
-  // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
-  h = 50.0;//dht.readHumidity();
-  // Read temperature as Celsius
-  t = celsius;//dht.readTemperature();
-  
-  // Check if any reads failed and exit early (to try again).
-  if (isnan(h) || isnan(t)) {
-    Serial.println("Failed to read from DHT sensor!");    
-  }
-  else
-  {
-    Serial.print("Humidity: "); 
-    Serial.print(h);
-    Serial.print(" %\t");
-    Serial.print("Temperature: "); 
-    Serial.print(t);
-    Serial.println(" *C ");
-    Serial.println("Do Send");
-
-
-  // Esto funciona perfecto ------------------------------------------------------------
-//    char json_data[60];
-//  
-//    float temp = dht.readTemperature();
-//    float humidity = dht.readHumidity();
-//    
-//    int temp_decimal1 = (int)temp;
-//    temp -= temp_decimal1;
-//    temp *= 100;
-//    int temp_decimal2 = (int)temp;
-//    int hum_decimal1 = (int)humidity;
-//    humidity -= hum_decimal1;
-//    humidity *= 100;
-//    int hum_decimal2 = (int)humidity;
-//    snprintf(json_data, 60, "{\"T\":%d.%d,\"H\":%d.%d}", temp_decimal1, temp_decimal2, hum_decimal1, hum_decimal2);
-//    Serial.println(json_data);
-//    //return LoRa_send(19, (uint8_t*) json_data, strlen(json_data));
-//
-//  if (LMIC.opmode & OP_TXRXPEND) {
-//      Serial.println(F("OP_TXRXPEND, not sending"));
-//  } else {
-//      // Prepare data transmission at the next possible time.
-//      //LMIC_setTxData2(1, mydata, sizeof(mydata)-1, 0);
-//      //LMIC_setTxData2(1,(uint8_t*)&t,sizeof(t),0);
-//      LMIC_setTxData2(2, (uint8_t*) json_data, strlen(json_data), 0);
-//  }
-// --------------------------------------------------------------
-
-// Con cayenne ----------------------------------------------------------
-  lpp.reset();
-  lpp.addTemperature(1, t);
-  lpp.addRelativeHumidity(2, h);
-  //lpp.addGPS(3, 52.37365, 4.88650, 2);
-
-  // Send it off
-  if (LMIC.opmode & OP_TXRXPEND) {
-      Serial.println(F("OP_TXRXPEND, not sending"));
-  } else {
-      // Prepare data transmission at the next possible time.
-      //LMIC_setTxData2(1, mydata, sizeof(mydata)-1, 0);
-      //LMIC_setTxData2(1,(uint8_t*)&t,sizeof(t),0);
-      LMIC_setTxData2(1, lpp.getBuffer(), lpp.getSize(), 0);
-  }
-
-  // --> Esto es usando la librería de ttn --> ttn.sendBytes(lpp.getBuffer(), lpp.getSize());
-  
-// Fin Cayenne
-
-
-//  float h_float = dht.readHumidity();
-//  float t_float = dht.readTemperature(); 
-//  
-//  int h2 = (int)h;
-//  int t2 = (int)t;
-//
-//  int batt = 0;  // readVCC returns  mVolt need just 100mVolt steps
-//  byte batvalue = (byte)batt;
-// 
-//  byte data[4];
-//  data[0] = batvalue;  
-//  data[1] = h2 & 0xFF;
-//  data[2] = t2 & 0xFF;
-//  data[3] = t2 & 0xFF; 
-//
-//  if (LMIC.opmode & OP_TXRXPEND) {
-//      Serial.println(F("OP_TXRXPEND, not sending"));
-//  } else {
-//      // Prepare data transmission at the next possible time.
-//      //LMIC_setTxData2(1, mydata, sizeof(mydata)-1, 0);
-//      //LMIC_setTxData2(1,(uint8_t*)&t,sizeof(t),0);
-//      LMIC_setTxData2(1, data, sizeof(data), 0);
-//  }
-  
-//    dtostrf(t,5,2,(char*)mydata);
-//    do_send(&sendjob);
-    
-  }
-  i = 0;
-}
-else
-{  
   i++;  
-  //Serial.print(" - " + i);
-}
-
-
-
- 
+  
 }
