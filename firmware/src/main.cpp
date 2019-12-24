@@ -35,12 +35,8 @@
 #include "DHT_U.h"
 #include <CayenneLPP.h>
 #include <OneWire.h>
-#include <ArduinoUniqueID.h>
 #include "credentials.h"
 
-#define DHTPIN 2     // what pin we're connected to
-#define DHTTYPE DHT22   // DHT 22  (AM2302)
-#define DSPIN 3
 
 // These callbacks are only used in over-the-air activation, so they are
 // left empty here (we cannot leave them out completely unless
@@ -50,15 +46,22 @@ void os_getDevEui (u1_t* buf) { }
 void os_getDevKey (u1_t* buf) { }
 void do_send(osjob_t* j);
 
-static uint8_t mydata[] = { 0,0,0,0,0,0,0,0};
 static osjob_t sendjob;
 
-OneWire  ds( DSPIN );  // on pin 10 (a 4.7K resistor is necessary)
-DHT dht( DHTPIN, DHTTYPE );
+#if SENS_DS18B20
+  enum { 
+    DSPIN = 3
+  };
+  OneWire  ds( DSPIN );  // on pin 10 (a 4.7K resistor is necessary)
+#elif SENS_DHT22
+  enum {
+    DHTPIN = 3,     // what pin we're connected to
+    DHTTYPE = DHT22   // DHT 22  (AM2302)
+  };
+  DHT dht( DHTPIN, DHTTYPE );
+#endif 
 
-// Schedule TX every this many seconds (might become longer due to duty
-// cycle limitations).
-const unsigned TX_INTERVAL = 60;
+
 
 CayenneLPP lpp(51);
 
@@ -70,8 +73,9 @@ const lmic_pinmap lmic_pins = {
     .dio = {2, 7, LMIC_UNUSED_PIN},
 };
 
-float h = 0;
-float t = 0;
+static int i = SAMPLING_TIME;
+static float h = 0;
+static float t = 0;
 
 void onEvent (ev_t ev) {
     Serial.print(os_getTime());
@@ -106,6 +110,7 @@ void onEvent (ev_t ev) {
             break;
         case EV_TXCOMPLETE:
             Serial.println(F("EV_TXCOMPLETE (includes waiting for RX windows)"));
+            digitalWrite( A0, true );
             if (LMIC.txrxFlags & TXRX_ACK)
               Serial.println(F("Received ack"));
             if (LMIC.dataLen) {
@@ -138,6 +143,9 @@ void onEvent (ev_t ev) {
     }
 }
 
+
+
+#if SENS_DS18B20 
 struct dssens {
   byte present = 0;
   byte type_s;
@@ -192,17 +200,9 @@ static float ds_readTemperature( struct dssens* ds_hdl ) {
     ds.select( ds_hdl->addr );    
     ds.write( 0xBE );         // Read Scratchpad
 
-    //Serial.print("  Data = ");
-    //Serial.print(present, HEX);
-    //Serial.print(" ");
     for ( byte i = 0; i < 9; i++) {           // we need 9 bytes
       ds_hdl->data[i] = ds.read();
-      //Serial.print(data[i], HEX);
-      //Serial.print(" ");
     }
-    //Serial.print(" CRC=");
-    //Serial.print(OneWire::crc8(data, 8), HEX);
-    //Serial.println();
 
     // Convert the data to actual temperature
     // because the result is a 16 bit signed integer, it should
@@ -224,22 +224,17 @@ static float ds_readTemperature( struct dssens* ds_hdl ) {
       //// default is 12 bit resolution, 750 ms conversion time
     }
     return (float)raw / 16.0;
-    //fahrenheit = celsius * 1.8 + 32.0;
-    //Serial.print("  Temperature = ");
-    //Serial.print(celsius);
-    //Serial.print(" Celsius, ");
-    //Serial.print(fahrenheit);
-    //Serial.println(" Fahrenheit");
 }
+#endif
 
-
-void do_send(osjob_t* j){
-    
+void do_send( osjob_t* j ) {
+    digitalWrite( A0, false );
     if (LMIC.opmode & OP_TXRXPEND) {
         Serial.println(F("OP_TXRXPEND, not sending"));
     } else {
         // Prepare data transmission at the next possible time.
-        LMIC_setTxData2(1, mydata, strlen((char*) mydata), 0);
+        //LMIC_setTxData2(1, mydata, strlen((char*) mydata), 0);
+        LMIC_setTxData2(1, lpp.getBuffer(), lpp.getSize(), 0);
     }
 }
 
@@ -248,9 +243,9 @@ void setup() {
   
     Serial.begin(115200);
     Serial.println(F("Starting"));
-
-    dht.begin();
-
+    Serial.print(F("Sensor Addr: "));
+    Serial.println( DEVADDR, HEX );
+    
     // LMIC init
     os_init();
 
@@ -313,57 +308,51 @@ void setup() {
     // Set data rate and transmit power for uplink (note: txpow seems to be ignored by the library)
     LMIC_setDrTxpow( DR_SF7, 14 );
 
-    ds_init( &ds_hdl );
+#if SENS_DS18B20
+      ds_init( &ds_hdl );
+#elif SENS_DHT22
+      dht.begin();
+#endif
 
-    // Start job
-    //do_send( &sendjob );
+    do_send( &sendjob );
+    pinMode( A1, INPUT ); 
+    pinMode( A0, OUTPUT );
 }
 
 
-int i = 30;
-
 void loop() {
   os_runloop_once();
-
+  
   delay( 1000 );
+  if( !digitalRead( A1 ) ) do_send( &sendjob );
+  i++;
 
-  if (i == 30) {
-      // Reading temperature or humidity takes about 250 milliseconds!
-      // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
-      h = 50.0;//dht.readHumidity();
-      // Read temperature as Celsius
+  if ( i >= SAMPLING_TIME ) {
+      i = 0;
+      
+#if SENS_DS18B20
       t = ds_readTemperature( &ds_hdl );
-    
-      // Check if any reads failed and exit early (to try again).
-      if (isnan(h) || isnan(t)) {
-          Serial.println("Failed to read from DHT sensor!");    
-      }
-      else {
-          Serial.print("Humidity: "); 
-          Serial.print(h);
-          Serial.print(" %\t");
-          Serial.print("Temperature: "); 
-          Serial.print(t);
-          Serial.println(" *C ");
-          Serial.println("Do Send");
-
-          // Con cayenne ----------------------------------------------------------
-          lpp.reset();
-          lpp.addTemperature(1, t);
-          lpp.addRelativeHumidity(2, h);
-
-          // Send it off
-          if (LMIC.opmode & OP_TXRXPEND) {
-              Serial.println(F("OP_TXRXPEND, not sending"));
-          } 
-          else {
-              // Prepare data transmission at the next possible time.
-              LMIC_setTxData2(1, lpp.getBuffer(), lpp.getSize(), 0);
-          }
-      }
-  i = 0;
+      Serial.print("Temperature: "); 
+      Serial.print(t);
+      Serial.println(" *C ");
+      Serial.println("Do Send");
+      lpp.reset();
+      lpp.addTemperature(1, t);
+#elif SENS_DHT22
+      t = dht.readTemperature( ); // Read temperature as Celsius
+      h = dht.readHumidity( );
+      Serial.print("Temperature: "); 
+      Serial.print(t);
+      Serial.print(" *C ");
+      Serial.print("Humidity: "); 
+      Serial.print(h);
+      Serial.print(" %\t");
+      Serial.println("Do Send");
+      lpp.reset();
+      lpp.addTemperature(1, t);
+      lpp.addRelativeHumidity(2, h);
+#endif
+      
   } 
 
-  i++;  
-  
 }
