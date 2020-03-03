@@ -5,6 +5,14 @@
 extern "C"{
 #endif
 
+#define SENS_DHT22 true
+#define SENS_DS18B20 false
+
+// Schedule TX every this many seconds (might become longer due to duty cycle limitations).
+#define TX_INTERVAL ( 5*60 )//seconds
+
+#define SAMPLING_TIME 30//seconds
+
 // LoRaWAN NwkSKey, network session key
 // This is the default Semtech key, which is used by the early prototype TTN
 // network.
