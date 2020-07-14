@@ -1,0 +1,21 @@
+[submodule "firmware/lib/DHT-sensor-library"]
+	path = firmware/lib/DHT-sensor-library
+	url = https://github.com/adafruit/DHT-sensor-library
+[submodule "firmware/lib/Adafruit_Sensor"]
+	path = firmware/lib/Adafruit_Sensor
+	url = https://github.com/adafruit/Adafruit_Sensor
+[submodule "firmware/lib/CayenneLPP"]
+	path = firmware/lib/CayenneLPP
+	url = https://github.com/ElectronicCats/CayenneLPP
+[submodule "firmware/lib/ArduinoJson"]
+	path = firmware/lib/ArduinoJson
+	url = https://github.com/bblanchon/ArduinoJson
+[submodule "firmware/lib/OneWire"]
+	path = firmware/lib/OneWire
+	url = https://github.com/PaulStoffregen/OneWire
+[submodule "firmware/lib/ArduinoUniqueID"]
+	path = firmware/lib/ArduinoUniqueID
+	url = https://github.com/ricaun/ArduinoUniqueID
+[submodule "firmware/lib/arduino-lmic"]
+	path = firmware/lib/arduino-lmic
+	url = https://github.com/matthijskooijman/arduino-lmic
