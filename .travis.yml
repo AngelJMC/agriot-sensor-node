@@ -31,7 +31,7 @@
  sudo: false
  cache:
      directories:
-         - "~/.platformio"
+         - "~/.platformio" 
 
  install:
      - pip install -U platformio
