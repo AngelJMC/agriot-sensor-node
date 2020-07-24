@@ -35,8 +35,30 @@
 #include "DHT_U.h"
 #include <CayenneLPP.h>
 #include <OneWire.h>
+#include "AsyncSerialLib.h"
 #include "credentials.h"
+#include "avr/wdt.h"
+#include <EEPROM.h>
 
+#define EOL            '\n'
+
+enum loglevel{
+    ECHO = 0,
+    DISABLE = 0,
+    DEBUG,
+    WARNING,
+    ERROR
+};
+
+struct cfg{
+    uint8_t nwkskey[16];
+    uint8_t appskey[16];
+    uint32_t devaddr;
+};
+
+struct cfg cfg;
+
+void param_load(  );
 
 // These callbacks are only used in over-the-air activation, so they are
 // left empty here (we cannot leave them out completely unless
@@ -239,13 +261,47 @@ void do_send( osjob_t* j ) {
 }
 
 
+int const dataLength = 40;
+byte data[dataLength];
+
+enum resp{
+  NOK   = -1,
+  NOTHING = 0,
+  OK      = 1
+};
+
+typedef struct ack{
+  enum resp rp;
+  char type;
+}ack_t;
+
+static int const eeadrInfo = 0; 
+
+char cmd[40];
+char txbuff[64];
+
+enum loglevel verbose = DISABLE;
+
+
+uint16_t sensticks = 0;
+int incomingByte = 0;
+
+void sendresponse( ack_t *ack);
+ack_t parseCommands(AsyncSerial &serial);
+void printdebug( const char * msg, int errlevel );
+
+AsyncSerial asyncSerial(data, dataLength,
+	[](AsyncSerial& sender) { ack_t ack = parseCommands( sender ); sendresponse( &ack ); }
+);
+
+
 void setup() {
   
-    Serial.begin(115200);
+    wdt_disable();
+    Serial.begin(9600);
     Serial.println(F("Starting"));
-    Serial.print(F("Sensor Addr: "));
-    Serial.println( DEVADDR, HEX );
-    
+    param_load(  );
+
     // LMIC init
     os_init();
 
@@ -254,19 +310,8 @@ void setup() {
 
     // Set static session parameters. Instead of dynamically establishing a session
     // by joining the network, precomputed session parameters are be provided.
-    #ifdef PROGMEM
-    // On AVR, these values are stored in flash and only copied to RAM
-    // once. Copy them to a temporary buffer here, LMIC_setSession will
-    // copy them into a buffer of its own again.
-    uint8_t appskey[sizeof(APPSKEY)];
-    uint8_t nwkskey[sizeof(NWKSKEY)];
-    memcpy_P(appskey, APPSKEY, sizeof(APPSKEY));
-    memcpy_P(nwkskey, NWKSKEY, sizeof(NWKSKEY));
-    LMIC_setSession (0x1, DEVADDR, nwkskey, appskey);
-    #else
-    // If not running an AVR with PROGMEM, just use the arrays directly
-    LMIC_setSession (0x1, DEVADDR, NWKSKEY, APPSKEY);
-    #endif
+    LMIC_setSession (0x1, cfg.devaddr, cfg.nwkskey, cfg.appskey );
+
 
     #if defined( CFG_eu868 )
     // Set up the channels used by the Things Network, which corresponds
@@ -308,6 +353,9 @@ void setup() {
     // Set data rate and transmit power for uplink (note: txpow seems to be ignored by the library)
     LMIC_setDrTxpow( DR_SF7, 14 );
 
+    asyncSerial.FinishChar = NEW_LINE;
+    asyncSerial.IgnoreChar = CARRIAGE_RETURN;
+
 #if SENS_DS18B20
       ds_init( &ds_hdl );
 #elif SENS_DHT22
@@ -317,42 +365,218 @@ void setup() {
     do_send( &sendjob );
     pinMode( A1, INPUT ); 
     pinMode( A0, OUTPUT );
+
+    //wdt_enable(WDTO_8S);
+
 }
 
 
 void loop() {
-  os_runloop_once();
   
-  delay( 1000 );
-  if( !digitalRead( A1 ) ) do_send( &sendjob );
-  i++;
+  //wdt_reset();
+  asyncSerial.AsyncRecieve();
 
-  if ( i >= SAMPLING_TIME ) {
-      i = 0;
-      
-#if SENS_DS18B20
-      t = ds_readTemperature( &ds_hdl );
-      Serial.print("Temperature: "); 
-      Serial.print(t);
-      Serial.println(" *C ");
-      Serial.println("Do Send");
-      lpp.reset();
-      lpp.addTemperature(1, t);
-#elif SENS_DHT22
-      t = dht.readTemperature( ); // Read temperature as Celsius
-      h = dht.readHumidity( );
-      Serial.print("Temperature: "); 
-      Serial.print(t);
-      Serial.print(" *C ");
-      Serial.print("Humidity: "); 
-      Serial.print(h);
-      Serial.print(" %\t");
-      Serial.println("Do Send");
-      lpp.reset();
-      lpp.addTemperature(1, t);
-      lpp.addRelativeHumidity(2, h);
-#endif
+  os_runloop_once();
+  ++sensticks;
+  if( sensticks > 40000 ){
+    sensticks = 0;
+    if( !digitalRead( A1 ) ) do_send( &sendjob );
+    i++;
+
+    if ( i >= SAMPLING_TIME ) {
+        i = 0;
+        
+  #if SENS_DS18B20
+        t = ds_readTemperature( &ds_hdl );
+        Serial.print("Temperature: "); 
+        Serial.print(t);
+        Serial.println(" *C ");
+        Serial.println("Do Send");
+        lpp.reset();
+        lpp.addTemperature(1, t);
+  #elif SENS_DHT22
+        t = dht.readTemperature( ); // Read temperature as Celsius
+        h = dht.readHumidity( );
+        Serial.print("Temperature: "); 
+        Serial.print(t);
+        Serial.print(" *C ");
+        Serial.print("Humidity: "); 
+        Serial.print(h);
+        Serial.print(" %\t");
+        Serial.println("Do Send");
+        lpp.reset();
+        lpp.addTemperature(1, t);
+        lpp.addRelativeHumidity(2, h);
+  #endif
+  }
       
   } 
 
+}
+
+
+
+
+
+
+int getNum(char ch)
+{
+    int num=0;
+    if( ch>='0' && ch<='9' ) {
+        num=ch-0x30;
+    }
+    else {
+        switch( ch ) {
+            case 'A': case 'a': num=10; break;
+            case 'B': case 'b': num=11; break;
+            case 'C': case 'c': num=12; break;
+            case 'D': case 'd': num=13; break;
+            case 'E': case 'e': num=14; break;
+            case 'F': case 'f': num=15; break;
+            default: num=0;
+        }
+    }
+    return num;
+}
+
+uint8_t hex2int( char hex[])
+{
+    return getNum(hex[0])*16 + getNum(hex[1]);
+}
+
+void printdebug( const char * msg, int errlevel ) {
+
+    char header[4];
+    sprintf( header, "!%d,", errlevel );
+    Serial.print( header );
+    Serial.print( msg );
+    Serial.print( EOL );
+}
+
+
+#if 1
+
+ack_t parseCommands(AsyncSerial &serial) {
+
+  ack_t ack = { .rp = NOK, .type = '\0' };
+  memcpy(&cmd, serial.GetContent(), serial.GetContentLength());
+
+  if ( ECHO )  //VERBOSE ECHO
+    printdebug( cmd, DEBUG );
+  switch ( cmd[0] ) {
+    case 'N':
+      {
+          if( strlen(cmd) != 34 ) 
+              return ack;
+
+          for( int i = 2; i < 34; i = i +2) {
+                  char cbyte[3]="";
+                  cbyte[0] = cmd[i];
+                  cbyte[1] = cmd[i+1];
+                  cfg.nwkskey[i/2 - 1] = hex2int(cbyte);
+          }
+          EEPROM.put( eeadrInfo, cfg );
+      }
+      break;
+    case 'A':
+      {
+          if( strlen(cmd) != 34 ) 
+              return ack;
+
+          for( int i = 2; i < 34; i = i +2) {
+                  char cbyte[3]="";
+                  cbyte[0] = cmd[i];
+                  cbyte[1] = cmd[i+1];
+                  cfg.appskey[i/2 - 1] = hex2int(cbyte);
+          }
+          EEPROM.put( eeadrInfo, cfg );
+      }
+      break;
+    case 'D':
+          {
+              if( strlen(cmd) != 10 ) 
+                  return ack;
+
+              uint32_t x = 0;
+              for( int i = 2; i < 10; ++i) 
+                    x = x*16 + getNum( cmd[i] );
+          
+              cfg.devaddr = x;
+              EEPROM.put( eeadrInfo, cfg );
+          }
+      break;
+    case 'I':
+        Serial.print("NetKey: ");
+        for( int i = 0; i < 16; ++i) { 
+          Serial.print(cfg.nwkskey[i], HEX );
+        }
+        Serial.print("\nAppKey: ");
+        for( int i = 0; i < 16; ++i) { 
+          Serial.print(cfg.appskey[i], HEX );
+        }
+      Serial.print(F("\nSensor Addr: "));
+      Serial.println( cfg.devaddr, HEX );
+      //Serial.print( EOL );
+      break;
+
+    default:
+      break;
+  }
+    
+
+    ack.rp = OK;
+    #if 0
+    if ( verbose >= DEBUG ) { //VERBOSE
+      sprintf( txbuff, "%s %d, %d, %d, %d", "RACE CONFIG: ",
+                                    cfg.startline,
+                                    cfg.nlap,
+                                    cfg.nrepeat,
+                                    cfg.finishline );
+      printdebug( txbuff, DEBUG );
+    }
+    #endif
+
+  return ack;
+}
+
+void sendresponse( ack_t *ack) {
+
+  if( ack->rp == OK ) { 
+    Serial.print( ack->type );
+    Serial.print("OK");
+    Serial.print( EOL );
+  }
+  else if( ack->rp == NOK ) {
+    Serial.print( ack->type );
+    Serial.print("NOK");
+    Serial.print( EOL );
+  }
+  memset( &cmd, '\0' , sizeof(cmd) );
+}
+#endif
+
+#define CFG_VER 1
+
+void param_setdefault( struct cfg* cfg ) { 
+  memcpy_P(cfg->appskey, APPSKEY, sizeof(APPSKEY));
+  memcpy_P(cfg->nwkskey, NWKSKEY, sizeof(NWKSKEY));
+  cfg->devaddr = DEVADDR;
+  
+}
+
+void param_load(  ) {
+    int cfgversion=0;
+    int eeAdress = eeadrInfo;
+    EEPROM.get( eeAdress, cfg );
+    eeAdress += sizeof( struct cfg );
+    EEPROM.get( eeAdress, cfgversion );
+    
+    if ( cfgversion != CFG_VER ) {
+      param_setdefault( &cfg );
+      eeAdress = 0;
+      EEPROM.put( eeAdress, cfg );
+      eeAdress += sizeof( struct cfg );
+      EEPROM.put( eeAdress, CFG_VER );
+      Serial.print(F("LOAD DEFAULT\n"));
+    }
 }
