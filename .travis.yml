@@ -38,6 +38,7 @@
      - platformio update
 
  script:
+     - cd firmware
      - platformio run
 
 
