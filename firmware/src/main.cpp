@@ -37,7 +37,6 @@
 
 
 
-struct txdata txdata;
 
 void setup() {
   
@@ -63,6 +62,7 @@ void loop() {
   
   if( !digitalRead( A1 ) ) 
     protocol_doSend( );
+
   
 }
 

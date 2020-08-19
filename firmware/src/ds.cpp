@@ -45,14 +45,14 @@ void ds_init( struct dssens* ds_hdl ) {
 }
 
 
+
+
 float ds_readTemperature( struct dssens* ds_hdl ) {
     ds.reset();
     ds.select( ds_hdl->addr );
     ds.write(0x44, 1);        // start conversion, with parasite power on at the end
 
-    delay(1000);
-
-    ds_hdl->present = ds.reset();
+    ds.reset();
     ds.select( ds_hdl->addr );    
     ds.write( 0xBE );         // Read Scratchpad
 

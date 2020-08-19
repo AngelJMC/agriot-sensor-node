@@ -29,7 +29,6 @@ void sensors_init( );
 
 void sensors_update(  osjob_t* j );
 
-extern struct txdata txdata;
 
 
 #endif // _SENSORS_H_

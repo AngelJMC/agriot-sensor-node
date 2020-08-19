@@ -4,19 +4,16 @@
 
 #include "protocol.h"
 
-// LoRaWAN NwkSKey, network session key
-// This is the default Semtech key, which is used by the early prototype TTN
-// network.
-//static const PROGMEM u1_t NWKSKEY[16] = {  };
 
-// LoRaWAN AppSKey, application session key
-// This is the default Semtech key, which is used by the early prototype TTN
-// network.
-//static const u1_t PROGMEM APPSKEY[16] = {  };
 
-// LoRaWAN end-device address (DevAddr)
-//static const u4_t DEVADDR = 0x00000000; // <-- Change this address for every node!
+enum {
+    SWITCH_WAIT_TIME = 5000 //ms
+};
 
+struct txdata{
+  uint8_t *buff;
+  uint8_t size;
+};
 
 // These callbacks are only used in over-the-air activation, so they are
 // left empty here (we cannot leave them out completely unless
@@ -28,6 +25,10 @@ void do_send(osjob_t* j);
 
 static osjob_t sendjob;
 
+static uint64_t lastmillis = 0;
+
+struct txdata txdata;
+
 //Maping for IOTMCU arduino pro MINI
 const lmic_pinmap lmic_pins = {
     .nss = 10,
@@ -36,9 +37,19 @@ const lmic_pinmap lmic_pins = {
     .dio = {2, 7, LMIC_UNUSED_PIN},
 };
 
+
 void protocol_doSend( void ) {
-    os_setCallback( &sendjob, do_send);
+    if( (millis() - lastmillis) > SWITCH_WAIT_TIME ) {
+        os_setCallback( &sendjob, do_send);
+        lastmillis = millis();
+    }
 }
+
+void protocol_updateDataFrame( uint8_t* buff, uint8_t size ) {
+    txdata.buff = buff;
+    txdata.size  = size;
+}
+    
 
 void do_send( osjob_t* j ) {
     digitalWrite( A0, false );
@@ -46,18 +57,13 @@ void do_send( osjob_t* j ) {
         PROTOCOL_PRINTLN(F("OP_TXRXPEND, not sending"));
     } else {
         // Prepare data transmission at the next possible time.
-        //LMIC_setTxData2(1, mydata, strlen((char*) mydata), 0);
-        LMIC_setTxData2(1, txdata.buff, txdata.len, 0);
-                PROTOCOL_PRINTLN(F("SENDING...."));
-
-        //CALLBACK!!!!!!!!!!!!!!!!!
+        LMIC_setTxData2(1, txdata.buff, txdata.size, 0);
+        PROTOCOL_PRINTLN(F("SENDING...."));
     }
 }
 
 
 void protocol_init( struct cfg* cfg ) {
-
-
 
     // Reset the MAC state. Session and pending data transfers will be discarded.
     LMIC_reset();
@@ -108,7 +114,6 @@ void protocol_init( struct cfg* cfg ) {
     LMIC_setDrTxpow( DR_SF7, 14 );
 
     // Start job (sending automatically starts OTAA too)
-    //os_setCallback( &sendjob, do_send);
     do_send(&sendjob);
 }
 

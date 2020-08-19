@@ -1,7 +1,6 @@
 
 
 struct dssens {
-  byte present = 0;
   byte type_s;
   byte data[12];
   byte addr[8];

@@ -34,11 +34,9 @@ extern "C"{
 #define TX_INTERVAL ( 5*60 )//seconds
 
 
-struct txdata{
-  uint8_t *buff;
-  uint8_t len;
-};
 
+
+void protocol_updateDataFrame( uint8_t* buff, uint8_t size );
 
 void protocol_init( struct cfg* cfg );
 
@@ -46,7 +44,6 @@ void protocol_doSend( void );
 
 void param_setdefault( struct cfg* cfg );
 
-extern struct txdata txdata;
 
 #ifdef __cplusplus
 }
