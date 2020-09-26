@@ -5,9 +5,11 @@
 #include "Arduino.h"
 
 struct cfg{
-    uint8_t nwkskey[16];
-    uint8_t appskey[16];
-    uint32_t devaddr;
+    //uint8_t nwkskey[16];
+    uint8_t devEUI[8];
+    uint8_t appEUI[8];
+    uint8_t appkey[16];
+    //uint32_t devaddr;
 }; 
 
 

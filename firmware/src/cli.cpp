@@ -1,5 +1,6 @@
 #include "Arduino.h"
 #include "cfg.h"
+#include "ArduinoUniqueID.h"
 
 #include "AsyncSerialLib.h"
 #include <EEPROM.h>
@@ -81,6 +82,27 @@ uint8_t hex2int( char hex[])
     return getNum(hex[0])*16 + getNum(hex[1]);
 }
 
+int parseStringHex( uint8_t* dest, const char* cmd, size_t len ) {
+    if( strlen(cmd) != len ) 
+        return -1;
+
+    for( size_t i = 2; i < len; i = i +2) {
+        char cbyte[3]="";
+        cbyte[0] = cmd[i];
+        cbyte[1] = cmd[i+1];
+        dest[i/2 - 1] = hex2int(cbyte);
+    }
+    return 0;
+}
+
+void printStringHex( const uint8_t* source, size_t len ) {
+    for( size_t i = 0; i < len; ++i) {
+        if (source[i] < 0x10)
+			    Serial.print("0");
+        Serial.print(source[i], HEX );
+    }
+}
+
 void printdebug( const char * msg, int errlevel ) {
 
     char header[4];
@@ -100,70 +122,39 @@ ack_t parseCommands(AsyncSerial &serial ) {
   if ( ECHO )  //VERBOSE ECHO
     printdebug( cmd, DEBUG );
   switch ( cmd[0] ) {
-    case 'N':
+    case 'E':
       {
-          if( strlen(cmd) != 34 ) 
-              return ack;
-
-          for( int i = 2; i < 34; i = i +2) {
-                  char cbyte[3]="";
-                  cbyte[0] = cmd[i];
-                  cbyte[1] = cmd[i+1];
-                  cfg.nwkskey[i/2 - 1] = hex2int(cbyte);
-          }
+          int err = parseStringHex( cfg.appEUI, cmd, 18 );
+          if( err )
+            return ack;
           EEPROM.put( eeadrInfo, cfg );
       }
       break;
-    case 'A':
+    case 'K':
       {
-          if( strlen(cmd) != 34 ) 
-              return ack;
-
-          for( int i = 2; i < 34; i = i +2) {
-                  char cbyte[3]="";
-                  cbyte[0] = cmd[i];
-                  cbyte[1] = cmd[i+1];
-                  cfg.appskey[i/2 - 1] = hex2int(cbyte);
-          }
+          int err = parseStringHex( cfg.appkey, cmd, 34 );
+          if( err )
+            return ack;
           EEPROM.put( eeadrInfo, cfg );
       }
-      break;
-    case 'D':
-          {
-              if( strlen(cmd) != 10 ) 
-                  return ack;
-
-              uint32_t x = 0;
-              for( int i = 2; i < 10; ++i) 
-                    x = x*16 + getNum( cmd[i] );
-          
-              cfg.devaddr = x;
-              EEPROM.put( eeadrInfo, cfg );
-          }
       break;
     case 'I':
-    {
-        Serial.print("NetKey: ");
-        for( int i = 0; i < 16; ++i) { 
-          Serial.print(cfg.nwkskey[i], HEX );
-        }
-        Serial.print("\nAppKey: ");
-        for( int i = 0; i < 16; ++i) { 
-          Serial.print(cfg.appskey[i], HEX );
-        }
-      Serial.print(F("\nSensor Addr: "));
-      Serial.println( cfg.devaddr, HEX );
-      //Serial.print( EOL );
+      {
+        Serial.print("Dev EUI: ");
+        printStringHex( cfg.devEUI, 8);
+        Serial.print("\nApp EUI: ");
+        printStringHex( cfg.appEUI, 8);
+        Serial.print(F("\nApp Key: "));
+        printStringHex( cfg.appkey, 16);
+        Serial.print( EOL );
       }
       break;
 
     default:
       break;
   }
-    
 
-    ack.rp = OK;
-
+  ack.rp = OK;
   return ack;
 }
 
@@ -183,20 +174,19 @@ void sendresponse( ack_t *ack) {
 }
 
 
-#define CFG_VER 1
-
-
 void cli_init( void ) {
     asyncSerial.FinishChar = NEW_LINE;
     asyncSerial.IgnoreChar = CARRIAGE_RETURN;
 }
 
+
 void param_setdefault( struct cfg* cfg ) { 
-  memcpy_P(cfg->appskey, 0, sizeof(16));
-  memcpy_P(cfg->nwkskey, 0, sizeof(16));
-  cfg->devaddr = 0;
-  
+  memcpy(cfg->appkey, 0, sizeof(16));
+  memcpy(cfg->appEUI, 0, sizeof(8));  
 }
+
+#define CFG_VER 1
+
 
 void param_load(  ) {
     int cfgversion=0;
@@ -204,6 +194,9 @@ void param_load(  ) {
     EEPROM.get( eeAdress, cfg );
     eeAdress += sizeof( struct cfg );
     EEPROM.get( eeAdress, cfgversion );
+
+	  for (size_t i = 0; i < 8; i++)
+		  cfg.devEUI[i]=UniqueID8[i];
     
     if ( cfgversion != CFG_VER ) {
       param_setdefault( &cfg );

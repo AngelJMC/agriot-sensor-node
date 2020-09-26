@@ -18,9 +18,32 @@ struct txdata{
 // These callbacks are only used in over-the-air activation, so they are
 // left empty here (we cannot leave them out completely unless
 // DISABLE_JOIN is set in config.h, otherwise the linker will complain).
-void os_getArtEui (u1_t* buf) { }
-void os_getDevEui (u1_t* buf) { }
-void os_getDevKey (u1_t* buf) { }
+
+// This EUI must be in little-endian format, so least-significant-byte
+// first. When copying an EUI from ttnctl output, this means to reverse
+// the bytes. For TTN issued EUIs the last bytes should be 0xD5, 0xB3,
+// 0x70.
+void os_getArtEui (u1_t* buf) {
+    for( int i = 0; i < 8; ++i)
+        buf[i] = cfg.appEUI[7-i];
+}
+
+// This should also be in little endian format, see above.
+void os_getDevEui (u1_t* buf) {
+    for( int i = 0; i < 8; ++i) 
+        buf[i] = cfg.devEUI[7-i];
+}
+
+// This key should be in big endian format (or, since it is not really a
+// number but a block of memory, endianness does not really apply). In
+// practice, a key taken from ttnctl can be copied as-is.
+// The key shown here is the semtech default key.
+static const u1_t PROGMEM APPKEY[16] = { 0x04, 0x14, 0xE7, 0x35, 0x8A, 0x04, 0x29, 0x1A, 0x85, 0x13, 0xE7, 0xC2, 0x1F, 0x2F, 0x35, 0x2F };
+void os_getDevKey (u1_t* buf) {  
+    memcpy(buf, cfg.appkey, 16);
+}
+
+
 void do_send(osjob_t* j);
 
 static osjob_t sendjob;
@@ -67,52 +90,9 @@ void protocol_init( struct cfg* cfg ) {
 
     // Reset the MAC state. Session and pending data transfers will be discarded.
     LMIC_reset();
-
-    // Set static session parameters. Instead of dynamically establishing a session
-    // by joining the network, precomputed session parameters are be provided.
-    LMIC_setSession (0x1, cfg->devaddr, cfg->nwkskey, cfg->appskey );
-
-
-    #if defined( CFG_eu868 )
-    // Set up the channels used by the Things Network, which corresponds
-    // to the defaults of most gateways. Without this, only three base
-    // channels from the LoRaWAN specification are used, which certainly
-    // works, so it is good for debugging, but can overload those
-    // frequencies, so be sure to configure the full frequency range of
-    // your network here (unless your network autoconfigures them).
-    // Setting up channels should happen after LMIC_setSession, as that
-    // configures the minimal channel set.
-    // NA-US channels 0-71 are configured automatically
-    LMIC_setupChannel(0, 868100000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);      // g-band
-    LMIC_setupChannel(1, 868300000, DR_RANGE_MAP(DR_SF12, DR_SF7B), BAND_CENTI);      // g-band
-    LMIC_setupChannel(2, 868500000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);      // g-band
-    LMIC_setupChannel(3, 867100000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);      // g-band
-    LMIC_setupChannel(4, 867300000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);      // g-band
-    LMIC_setupChannel(5, 867500000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);      // g-band
-    LMIC_setupChannel(6, 867700000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);      // g-band
-    LMIC_setupChannel(7, 867900000, DR_RANGE_MAP(DR_SF12, DR_SF7),  BAND_CENTI);      // g-band
-    LMIC_setupChannel(8, 868800000, DR_RANGE_MAP(DR_FSK,  DR_FSK),  BAND_MILLI);      // g2-band
-    // TTN defines an additional channel at 869.525Mhz using SF9 for class B
-    // devices' ping slots. LMIC does not have an easy way to define set this
-    // frequency and support for class B is spotty and untested, so this
-    // frequency is not configured here.
-    #elif defined( CFG_us915 )
-    // NA-US channels 0-71 are configured automatically
-    // but only one group of 8 should (a subband) should be active
-    // TTN recommends the second sub band, 1 in a zero based count.
-    // https://github.com/TheThingsNetwork/gateway-conf/blob/master/US-global_conf.json
-    LMIC_selectSubBand(1);
-    #endif
-
-    // Disable link check validation
-    LMIC_setLinkCheckMode( 0 );
-
-    // TTN uses SF9 for its RX2 window.
-    LMIC.dn2Dr = DR_SF9;
-
-    // Set data rate and transmit power for uplink (note: txpow seems to be ignored by the library)
-    LMIC_setDrTxpow( DR_SF7, 14 );
-
+    
+    LMIC_setClockError(MAX_CLOCK_ERROR * 20 / 100);
+    
     // Start job (sending automatically starts OTAA too)
     do_send(&sendjob);
 }
@@ -138,6 +118,9 @@ void onEvent (ev_t ev) {
             PROTOCOL_PRINTLN(F("EV_JOINING"));
             break;
         case EV_JOINED:
+            // Disable link check validation (automatically enabled
+            // during join, but not supported by TTN at this time).
+            LMIC_setLinkCheckMode(0);
             PROTOCOL_PRINTLN(F("EV_JOINED"));
             break;
         case EV_RFU1:
