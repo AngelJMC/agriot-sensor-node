@@ -22,3 +22,6 @@
 [submodule "firmware/lib/Arduino-AsyncSerial"]
 	path = firmware/lib/Arduino-AsyncSerial
 	url = https://github.com/luisllamasbinaburo/Arduino-AsyncSerial
+[submodule "firmware/lib/SDISerial"]
+	path = firmware/lib/SDISerial
+	url = https://github.com/joranbeasley/SDISerial

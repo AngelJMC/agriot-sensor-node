@@ -38,7 +38,7 @@ extern "C"{
 
 void protocol_updateDataFrame( uint8_t* buff, uint8_t size );
 
-void protocol_init( struct cfg* cfg );
+void protocol_init( void );
 
 void protocol_doSend( void );
 

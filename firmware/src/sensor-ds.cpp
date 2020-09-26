@@ -1,53 +1,78 @@
-
+#ifdef SENS_DS
+#include "protocol.h"
+#include "sensors.h"
 #include <OneWire.h>
-#include "ds.h"
+#include <CayenneLPP.h>
+
+struct dssens {
+  byte type_s;
+  byte data[12];
+  byte addr[8];
+};
 
 enum { 
     DSPIN = 3
 };
-  
+
+static osjob_t sensjob;
+static dssens sensor;
+CayenneLPP lpp(51);
 OneWire  ds( DSPIN );  // on pin 10 (a 4.7K resistor is necessary)
 
+static float ds_readTemperature( struct dssens* ds_hdl );
 
+void sensors_init( ) {
 
-void ds_init( struct dssens* ds_hdl ) {
-    if ( !ds.search(ds_hdl->addr)) {
-      Serial.println("No more addresses.");
-      Serial.println();
-      ds.reset_search();
-      delay(250);
-      return;
+    if ( !ds.search(sensor.addr)) {
+        SENSORS_PRINTLN("No more addresses.");
+        ds.reset_search();
+        delay(250);
+        return;
     }
     
-    if (OneWire::crc8(ds_hdl->addr, 7) != ds_hdl->addr[7]) {
-        Serial.println("CRC is not valid!");
+    if (OneWire::crc8(sensor.addr, 7) != sensor.addr[7]) {
+        SENSORS_PRINTLN("CRC is not valid!");
         return;
     }
   
     // the first ROM byte indicates which chip
-    switch (ds_hdl->addr[0]) {
+    switch (sensor.addr[0]) {
       case 0x10:
-        Serial.println("  Chip = DS18S20");  // or old DS1820
-        ds_hdl->type_s = 1;
+        SENSORS_PRINTLN("  Chip = DS18S20");  // or old DS1820
+        sensor.type_s = 1;
         break;
       case 0x28:
-        Serial.println("  Chip = DS18B20");
-        ds_hdl->type_s = 0;
+        SENSORS_PRINTLN("  Chip = DS18B20");
+        sensor.type_s = 0;
         break;
       case 0x22:
-        Serial.println("  Chip = DS1822");
-        ds_hdl->type_s = 0;
+        SENSORS_PRINTLN("  Chip = DS1822");
+        sensor.type_s = 0;
         break;
       default:
-        Serial.println("Device is not a DS18x20 family device.");
+        SENSORS_PRINTLN("Device is not a DS18x20 family device.");
         return;
     } 
+    // Schedule next transmission
+    os_setCallback( &sensjob, sensors_update );
 }
 
 
+void sensors_update( osjob_t* j ) {
+
+    float t = ds_readTemperature( &sensor );
+    SENSORS_PRINT("Temperature: "); 
+    SENSORS_PRINT(t);
+    SENSORS_PRINTLN(" *C ");
+    lpp.reset();
+    lpp.addTemperature(1, t);
+    protocol_updateDataFrame( lpp.getBuffer(), lpp.getSize() );
+
+    os_setTimedCallback( &sensjob, os_getTime() + sec2osticks(SAMPLING_TIME), sensors_update );
+}
 
 
-float ds_readTemperature( struct dssens* ds_hdl ) {
+static float ds_readTemperature( struct dssens* ds_hdl ) {
     ds.reset();
     ds.select( ds_hdl->addr );
     ds.write(0x44, 1);        // start conversion, with parasite power on at the end
@@ -82,5 +107,4 @@ float ds_readTemperature( struct dssens* ds_hdl ) {
     return (float)raw / 16.0;
 }
 
-
-
+#endif

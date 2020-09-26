@@ -7,9 +7,7 @@
 
 #define SENSORS_DEBUG 
 
-#define DEBUG_PRINTER                                                          \
-  Serial /**< Define where debug output will be printed.                       \
-          */
+#define DEBUG_PRINTER Serial /**< Define where debug output will be printed.*/
 
 /* Setup debug printing macros. */
 #ifdef SENSORS_DEBUG

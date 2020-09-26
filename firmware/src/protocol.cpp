@@ -86,11 +86,13 @@ void do_send( osjob_t* j ) {
 }
 
 
-void protocol_init( struct cfg* cfg ) {
+void protocol_init( ) {
 
     // Reset the MAC state. Session and pending data transfers will be discarded.
     LMIC_reset();
     
+    // Cause the RX windows to open earlier to accomodate issues caused by the 
+    // Arduino Mini's relatively slow (8 MHz) clock
     LMIC_setClockError(MAX_CLOCK_ERROR * 20 / 100);
     
     // Start job (sending automatically starts OTAA too)

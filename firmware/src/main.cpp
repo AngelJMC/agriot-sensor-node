@@ -46,9 +46,9 @@ void setup() {
     param_load(  );
     
     os_init();
-    protocol_init( &cfg );
-    cli_init( );
-    sensors_init( );
+    protocol_init();
+    cli_init();
+    sensors_init();
 
     pinMode( A1, INPUT ); 
     pinMode( A0, OUTPUT );
