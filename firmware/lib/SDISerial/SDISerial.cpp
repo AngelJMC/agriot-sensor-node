@@ -54,7 +54,7 @@ typedef struct _DELAY_TABLE
   unsigned short tx_delay;
 } DELAY_TABLE;
 
-static const uint8_t pin2int[23] = {-1, -1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 5, 2, 3};
+static const uint8_t pin2int[23] = {0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 5, 2, 3};
 #if F_CPU == 16000000
 
 static const DELAY_TABLE PROGMEM table[] = 
@@ -368,12 +368,8 @@ void SDISerial::setTX(uint8_t tx)
 void SDISerial::sdi_cmd(const char* bytes){
     //detach interrupt for this ...
 	detachInterrupt(pin2int[_receivePin]);
-	char buffer[255];
-	int i=0;
 	char* p = (char*)bytes;
 	
-	buffer[0] = '\0';
-	uint8_t oldSREG = SREG;
 	pinMode(_receivePin, OUTPUT);
 	//break signal (Hi 13ms/Lo 8.33ms) see integrators guide
 	digitalWrite(_receivePin, HIGH);
@@ -408,7 +404,7 @@ char* SDISerial::sdi_query(const char* cmd,uint32_t timeout_ms){
 char* SDISerial::service_request(const char* service_request,const char* read_command){
 	char* service_request_response = sdi_query(service_request,1000);
 	if (service_request_response == NULL || service_request_response == '\0')return NULL;
-	char* response_ready = wait_for_response(1000);
+	return wait_for_response(1000);
 }
 
 void SDISerial::setRX(uint8_t rx)
@@ -486,8 +482,7 @@ int SDISerial::read()
 }
 
 uint8_t* SDISerial::read_buffer(){
-    int i =0;
-	char tmp[100],x;
+  int i =0;
 	response[0] = '\0';
 	while(_receive_buffer_head != _receive_buffer_tail){
   	    response[i] = read()&0x7F;
