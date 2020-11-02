@@ -6,7 +6,10 @@
 
 enum {
     SWITCH_SAMPLE_TIME = 1,
-    SWITCH_WAIT_TIME   = 10 //s
+    SWITCH_WAIT_TIME   = 10, //s
+    
+    GPIO_LED           = A0,        
+    GPIO_SWITCH        = A1
 };
 
 struct txdata{
@@ -53,7 +56,7 @@ void os_getDevKey (u1_t* buf) {
 
 void os_send( osjob_t* j ) {
     // Check if there is not a current TX/RX job running
-    digitalWrite( A0, false );
+    digitalWrite( GPIO_LED, false );
     if (LMIC.opmode & OP_TXRXPEND) {
         PROTOCOL_PRINTLN(F("OP_TXRXPEND, not sending"));
     } 
@@ -66,7 +69,7 @@ void os_send( osjob_t* j ) {
 }
 
 void os_checkSwitch( osjob_t* j ) {
-    if( !digitalRead( A1 ) ) {
+    if( !digitalRead( GPIO_SWITCH ) ) {
         os_setCallback( &sendjob, os_send);
         os_setTimedCallback( &switchjob, os_getTime() + sec2osticks(SWITCH_WAIT_TIME), os_checkSwitch);
     }
@@ -81,6 +84,10 @@ void protocol_init( ) {
     // Cause the RX windows to open earlier to accomodate issues caused by the 
     // Arduino Mini's relatively slow (8 MHz) clock
     LMIC_setClockError(MAX_CLOCK_ERROR * 20 / 100);
+
+    pinMode( GPIO_SWITCH, INPUT ); 
+    pinMode( GPIO_LED, OUTPUT );
+
     // Start job (sending automatically starts OTAA too)
     os_send( &sendjob );
     os_checkSwitch( &switchjob ); 
@@ -124,7 +131,7 @@ void onEvent (ev_t ev) {
             break;
         case EV_TXCOMPLETE:
             PROTOCOL_PRINTLN(F("EV_TXCOMPLETE (includes waiting for RX windows)"));
-            digitalWrite( A0, true );
+            digitalWrite( GPIO_LED, true );
             if (LMIC.txrxFlags & TXRX_ACK)
               PROTOCOL_PRINTLN(F("Received ack"));
             if (LMIC.dataLen) {

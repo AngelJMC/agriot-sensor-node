@@ -48,14 +48,11 @@ void setup() {
     cli_init();
     sensors_init();
 
-    pinMode( A1, INPUT ); 
-    pinMode( A0, OUTPUT );
 }
 
 
 void loop() {
-  cli_update( );
-  os_runloop_once();
+    os_runloop_once();
 }
 
 

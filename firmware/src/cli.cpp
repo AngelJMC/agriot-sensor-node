@@ -3,6 +3,7 @@
 #include "ArduinoUniqueID.h"
 #include "AsyncSerialLib.h"
 #include <EEPROM.h>
+#include <lmic.h>
 
 #define EOL            '\n'
 
@@ -33,6 +34,7 @@ byte data[dataLength];
 
 static int const eeadrInfo = 0; 
 struct cfg cfg;
+static osjob_t clijob;
 
 
 void sendresponse( ack_t *ack);
@@ -44,11 +46,6 @@ AsyncSerial asyncSerial( data, dataLength, [](AsyncSerial& sender) {
         sendresponse( &ack ); 
     }
 );
-
-void cli_update( ) {
-    asyncSerial.AsyncRecieve();
-}
-
 
 int getNum( char ch ) {
     int num=0;
@@ -163,9 +160,16 @@ void sendresponse( ack_t *ack) {
 }
 
 
+void cli_update( osjob_t* j ) {
+    asyncSerial.AsyncRecieve();
+    os_setTimedCallback( &clijob, os_getTime() + ms2osticks(250), cli_update );
+}
+
+
 void cli_init( void ) {
     asyncSerial.FinishChar = NEW_LINE;
     asyncSerial.IgnoreChar = CARRIAGE_RETURN;
+    os_setTimedCallback( &clijob, os_getTime() +ms2osticks(20), cli_update );
 }
 
 
