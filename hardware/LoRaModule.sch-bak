@@ -333,7 +333,7 @@ Wire Wire Line
 	6600 2300 6400 2300
 Connection ~ 6400 2300
 $Comp
-L dc-dc_module:DC-DC_Buck_Step_Module M1
+L LoRaModule-rescue:DC-DC_Buck_Step_Module-dc-dc_module M1
 U 1 1 5DC23DCA
 P 2900 4550
 F 0 "M1" H 2900 4865 50  0000 C CNN
