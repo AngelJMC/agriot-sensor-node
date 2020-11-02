@@ -1,7 +1,6 @@
 #include <lmic.h>
 #include <hal/hal.h>
 #include "cfg.h"
-
 #include "protocol.h"
 
 enum {

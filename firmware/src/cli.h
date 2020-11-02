@@ -3,7 +3,7 @@
 #ifndef _CLI_H_
 #define _CLI_H_
 
-void param_load( void ); 
+#include "Arduino.h"
 
 void cli_init( void );
 

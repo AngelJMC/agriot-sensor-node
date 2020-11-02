@@ -1,8 +1,6 @@
-#include "Arduino.h"
+
 #include "cfg.h"
-#include "ArduinoUniqueID.h"
 #include "AsyncSerialLib.h"
-#include <EEPROM.h>
 #include <lmic.h>
 
 #define EOL            '\n'
@@ -30,10 +28,6 @@ enum loglevel verbose = DISABLE;
 
 int const dataLength = 64;
 byte data[dataLength];
-
-
-static int const eeadrInfo = 0; 
-struct cfg cfg;
 static osjob_t clijob;
 
 
@@ -86,7 +80,7 @@ int parseStringHex( uint8_t* dest, const char* cmd, size_t len ) {
 void printStringHex( const uint8_t* source, size_t len ) {
     for( size_t i = 0; i < len; ++i) {
         if (source[i] < 0x10)
-			    Serial.print("0");
+			      Serial.print("0");
         Serial.print(source[i], HEX );
     }
 }
@@ -104,59 +98,60 @@ void printdebug( const char* msg, int errlevel ) {
 
 ack_t parseCommands(AsyncSerial &serial ) {
 
-  ack_t ack = { .rp = NOK, .type = '\0' };
-  const char* cmd = (char*)serial.GetContent();
-  if ( ECHO )  //VERBOSE ECHO
-    printdebug( cmd, DEBUG );
-  switch ( cmd[0] ) {
+    ack_t ack = { .rp = NOK, .type = '\0' };
+    const char* cmd = (char*)serial.GetContent();
+    if ( ECHO )  //VERBOSE ECHO
+        printdebug( cmd, DEBUG );
+    
+    switch ( cmd[0] ) {
     case 'E':
       {
           int err = parseStringHex( cfg.appEUI, cmd, (APPEUI_SIZE*2)+2 );
           if( err )
-            return ack;
-          EEPROM.put( eeadrInfo, cfg );
+              return ack;
+          param_savecfg(&cfg);
       }
       break;
     case 'K':
       {
           int err = parseStringHex( cfg.appkey, cmd, (APPKEY_SIZE*2)+2 );
           if( err )
-            return ack;
-          EEPROM.put( eeadrInfo, cfg );
+              return ack;
+          param_savecfg(&cfg);
       }
       break;
-    case 'I':
+      case 'I':
       {
-        Serial.print("Dev EUI: ");
-        printStringHex( cfg.devEUI, DEVEUI_SIZE);
-        Serial.print("\nApp EUI: ");
-        printStringHex( cfg.appEUI, APPEUI_SIZE);
-        Serial.print(F("\nApp Key: "));
-        printStringHex( cfg.appkey, APPKEY_SIZE);
-        Serial.print( EOL );
+          Serial.print("Dev EUI: ");
+          printStringHex( cfg.devEUI, DEVEUI_SIZE);
+          Serial.print("\nApp EUI: ");
+          printStringHex( cfg.appEUI, APPEUI_SIZE);
+          Serial.print(F("\nApp Key: "));
+          printStringHex( cfg.appkey, APPKEY_SIZE);
+          Serial.print( EOL );
       }
       break;
 
-    default:
-      break;
-  }
+      default:
+        break;
+    }
 
-  ack.rp = OK;
-  return ack;
+    ack.rp = OK;
+    return ack;
 }
 
 void sendresponse( ack_t *ack) {
 
-  if( ack->rp == OK ) { 
-    Serial.print( ack->type );
-    Serial.print("OK");
-    Serial.print( EOL );
-  }
-  else if( ack->rp == NOK ) {
-    Serial.print( ack->type );
-    Serial.print("NOK");
-    Serial.print( EOL );
-  }
+    if( ack->rp == OK ) { 
+        Serial.print( ack->type );
+        Serial.print("OK");
+        Serial.print( EOL );
+    }
+    else if( ack->rp == NOK ) {
+        Serial.print( ack->type );
+        Serial.print("NOK");
+        Serial.print( EOL );
+    }
 }
 
 
@@ -173,31 +168,4 @@ void cli_init( void ) {
 }
 
 
-void param_setdefault( struct cfg* cfg ) { 
-    memset(cfg->appkey, 0, APPKEY_SIZE);
-    memset(cfg->appEUI, 0, APPEUI_SIZE);  
-}
 
-#define CFG_VER 1
-
-
-void param_load(  ) {
-    int cfgversion=0;
-    int eeAdress = eeadrInfo;
-    EEPROM.get( eeAdress, cfg );
-    eeAdress += sizeof( struct cfg );
-    EEPROM.get( eeAdress, cfgversion );
-
-	  for (size_t i = 0; i < 8; i++)
-        cfg.devEUI[i]=UniqueID8[i];
-    
-    if ( cfgversion != CFG_VER ) {
-        param_setdefault( &cfg );
-        eeAdress = 0;
-        EEPROM.put( eeAdress, cfg );
-        eeAdress += sizeof( struct cfg );
-        cfgversion = CFG_VER;
-        EEPROM.put( eeAdress, cfgversion );
-        Serial.print(F("LOAD DEFAULT\n"));
-    }
-} 
