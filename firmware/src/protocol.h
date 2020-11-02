@@ -34,15 +34,9 @@ extern "C"{
 #define TX_INTERVAL ( 5*60 )//seconds
 
 
-
-
-void protocol_updateDataFrame( uint8_t* buff, uint8_t size );
-
 void protocol_init( void );
 
-void protocol_doSend( void );
-
-void param_setdefault( struct cfg* cfg );
+void protocol_updateDataFrame( uint8_t* buff, uint8_t size );
 
 
 #ifdef __cplusplus

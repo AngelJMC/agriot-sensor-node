@@ -1,7 +1,6 @@
 #include "Arduino.h"
 #include "cfg.h"
 #include "ArduinoUniqueID.h"
-
 #include "AsyncSerialLib.h"
 #include <EEPROM.h>
 
@@ -15,9 +14,6 @@ enum loglevel{
     ERROR
 };
 
-int const dataLength = 40;
-byte data[dataLength];
-
 enum resp{
   NOK   = -1,
   NOTHING = 0,
@@ -29,36 +25,32 @@ typedef struct ack{
   char type;
 }ack_t;
 
-static int const eeadrInfo = 0; 
-
-char cmd[40];
-char txbuff[64];
-
 enum loglevel verbose = DISABLE;
 
+int const dataLength = 64;
+byte data[dataLength];
+
+
+static int const eeadrInfo = 0; 
 struct cfg cfg;
 
-
-int incomingByte = 0;
 
 void sendresponse( ack_t *ack);
 ack_t parseCommands(AsyncSerial &serial );
 void printdebug( const char * msg, int errlevel );
 
-AsyncSerial asyncSerial(data, dataLength,
-	[](AsyncSerial& sender) { 
+AsyncSerial asyncSerial( data, dataLength, [](AsyncSerial& sender) { 
         ack_t ack = parseCommands( sender ); 
         sendresponse( &ack ); 
     }
 );
 
-
 void cli_update( ) {
-  asyncSerial.AsyncRecieve();
-  }
+    asyncSerial.AsyncRecieve();
+}
 
-int getNum(char ch)
-{
+
+int getNum( char ch ) {
     int num=0;
     if( ch>='0' && ch<='9' ) {
         num=ch-0x30;
@@ -77,8 +69,7 @@ int getNum(char ch)
     return num;
 }
 
-uint8_t hex2int( char hex[])
-{
+uint8_t hex2int( char hex[] ) {
     return getNum(hex[0])*16 + getNum(hex[1]);
 }
 
@@ -103,7 +94,7 @@ void printStringHex( const uint8_t* source, size_t len ) {
     }
 }
 
-void printdebug( const char * msg, int errlevel ) {
+void printdebug( const char* msg, int errlevel ) {
 
     char header[4];
     sprintf( header, "!%d,", errlevel );
@@ -117,14 +108,13 @@ void printdebug( const char * msg, int errlevel ) {
 ack_t parseCommands(AsyncSerial &serial ) {
 
   ack_t ack = { .rp = NOK, .type = '\0' };
-  memcpy(&cmd, serial.GetContent(), serial.GetContentLength());
-
+  const char* cmd = (char*)serial.GetContent();
   if ( ECHO )  //VERBOSE ECHO
     printdebug( cmd, DEBUG );
   switch ( cmd[0] ) {
     case 'E':
       {
-          int err = parseStringHex( cfg.appEUI, cmd, 18 );
+          int err = parseStringHex( cfg.appEUI, cmd, (APPEUI_SIZE*2)+2 );
           if( err )
             return ack;
           EEPROM.put( eeadrInfo, cfg );
@@ -132,7 +122,7 @@ ack_t parseCommands(AsyncSerial &serial ) {
       break;
     case 'K':
       {
-          int err = parseStringHex( cfg.appkey, cmd, 34 );
+          int err = parseStringHex( cfg.appkey, cmd, (APPKEY_SIZE*2)+2 );
           if( err )
             return ack;
           EEPROM.put( eeadrInfo, cfg );
@@ -141,11 +131,11 @@ ack_t parseCommands(AsyncSerial &serial ) {
     case 'I':
       {
         Serial.print("Dev EUI: ");
-        printStringHex( cfg.devEUI, 8);
+        printStringHex( cfg.devEUI, DEVEUI_SIZE);
         Serial.print("\nApp EUI: ");
-        printStringHex( cfg.appEUI, 8);
+        printStringHex( cfg.appEUI, APPEUI_SIZE);
         Serial.print(F("\nApp Key: "));
-        printStringHex( cfg.appkey, 16);
+        printStringHex( cfg.appkey, APPKEY_SIZE);
         Serial.print( EOL );
       }
       break;
@@ -170,7 +160,6 @@ void sendresponse( ack_t *ack) {
     Serial.print("NOK");
     Serial.print( EOL );
   }
-  memset( &cmd, '\0' , sizeof(cmd) );
 }
 
 
@@ -181,8 +170,8 @@ void cli_init( void ) {
 
 
 void param_setdefault( struct cfg* cfg ) { 
-  memcpy(cfg->appkey, 0, sizeof(16));
-  memcpy(cfg->appEUI, 0, sizeof(8));  
+    memset(cfg->appkey, 0, APPKEY_SIZE);
+    memset(cfg->appEUI, 0, APPEUI_SIZE);  
 }
 
 #define CFG_VER 1
@@ -196,15 +185,15 @@ void param_load(  ) {
     EEPROM.get( eeAdress, cfgversion );
 
 	  for (size_t i = 0; i < 8; i++)
-		  cfg.devEUI[i]=UniqueID8[i];
+        cfg.devEUI[i]=UniqueID8[i];
     
     if ( cfgversion != CFG_VER ) {
-      param_setdefault( &cfg );
-      eeAdress = 0;
-      EEPROM.put( eeAdress, cfg );
-      eeAdress += sizeof( struct cfg );
-      cfgversion = CFG_VER;
-      EEPROM.put( eeAdress, cfgversion );
-      Serial.print(F("LOAD DEFAULT\n"));
+        param_setdefault( &cfg );
+        eeAdress = 0;
+        EEPROM.put( eeAdress, cfg );
+        eeAdress += sizeof( struct cfg );
+        cfgversion = CFG_VER;
+        EEPROM.put( eeAdress, cfgversion );
+        Serial.print(F("LOAD DEFAULT\n"));
     }
 } 

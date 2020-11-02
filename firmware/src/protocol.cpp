@@ -4,10 +4,9 @@
 
 #include "protocol.h"
 
-
-
 enum {
-    SWITCH_WAIT_TIME = 5000 //ms
+    SWITCH_SAMPLE_TIME = 1,
+    SWITCH_WAIT_TIME   = 10 //s
 };
 
 struct txdata{
@@ -15,44 +14,8 @@ struct txdata{
   uint8_t size;
 };
 
-// These callbacks are only used in over-the-air activation, so they are
-// left empty here (we cannot leave them out completely unless
-// DISABLE_JOIN is set in config.h, otherwise the linker will complain).
 
-// This EUI must be in little-endian format, so least-significant-byte
-// first. When copying an EUI from ttnctl output, this means to reverse
-// the bytes. For TTN issued EUIs the last bytes should be 0xD5, 0xB3,
-// 0x70.
-void os_getArtEui (u1_t* buf) {
-    for( int i = 0; i < 8; ++i)
-        buf[i] = cfg.appEUI[7-i];
-}
-
-// This should also be in little endian format, see above.
-void os_getDevEui (u1_t* buf) {
-    for( int i = 0; i < 8; ++i) 
-        buf[i] = cfg.devEUI[7-i];
-}
-
-// This key should be in big endian format (or, since it is not really a
-// number but a block of memory, endianness does not really apply). In
-// practice, a key taken from ttnctl can be copied as-is.
-// The key shown here is the semtech default key.
-static const u1_t PROGMEM APPKEY[16] = { 0x04, 0x14, 0xE7, 0x35, 0x8A, 0x04, 0x29, 0x1A, 0x85, 0x13, 0xE7, 0xC2, 0x1F, 0x2F, 0x35, 0x2F };
-void os_getDevKey (u1_t* buf) {  
-    memcpy(buf, cfg.appkey, 16);
-}
-
-
-void do_send(osjob_t* j);
-
-static osjob_t sendjob;
-
-static uint64_t lastmillis = 0;
-
-struct txdata txdata;
-
-//Maping for IOTMCU arduino pro MINI
+//Maping for AGRIOT v1 based on Arduino pro MINI
 const lmic_pinmap lmic_pins = {
     .nss = 10,
     .rxtx = LMIC_UNUSED_PIN,
@@ -60,45 +23,73 @@ const lmic_pinmap lmic_pins = {
     .dio = {2, 7, LMIC_UNUSED_PIN},
 };
 
+static osjob_t sendjob;
+static osjob_t switchjob;
+struct txdata txdata;
 
-void protocol_doSend( void ) {
-    if( (millis() - lastmillis) > SWITCH_WAIT_TIME ) {
-        os_setCallback( &sendjob, do_send);
-        lastmillis = millis();
+// These callbacks are only used in over-the-air activation
+// This EUI must be in little-endian format, so least-significant-byte
+// first. When copying an EUI from ttnctl output, this means to reverse
+// the bytes. For TTN issued EUIs the last bytes should be 0xD5, 0xB3,
+// 0x70.
+void os_getArtEui (u1_t* buf) {
+    for( int i = 0; i < APPEUI_SIZE; ++i)
+        buf[i] = cfg.appEUI[(APPEUI_SIZE-1)-i];
+}
+
+// This should also be in little endian format, see above.
+void os_getDevEui (u1_t* buf) {
+    for( int i = 0; i < DEVEUI_SIZE; ++i) 
+        buf[i] = cfg.devEUI[(DEVEUI_SIZE-1)-i];
+}
+
+// This key should be in big endian format (or, since it is not really a
+// number but a block of memory, endianness does not really apply). In
+// practice, a key taken from ttnctl can be copied as-is.
+// The key shown here is the semtech default key.
+void os_getDevKey (u1_t* buf) {  
+    memcpy(buf, cfg.appkey, APPKEY_SIZE);
+}
+
+void os_send( osjob_t* j ) {
+    // Check if there is not a current TX/RX job running
+    digitalWrite( A0, false );
+    if (LMIC.opmode & OP_TXRXPEND) {
+        PROTOCOL_PRINTLN(F("OP_TXRXPEND, not sending"));
+    } 
+    else {
+        // Prepare data transmission at the next possible time.
+        LMIC_setTxData2(1, txdata.buff, txdata.size, 0);
+        Serial.println(F("Packet queued"));
     }
+    // Next TX is scheduled after TX_COMPLETE event.
+}
+
+void os_checkSwitch( osjob_t* j ) {
+    if( !digitalRead( A1 ) ) {
+        os_setCallback( &sendjob, os_send);
+        os_setTimedCallback( &switchjob, os_getTime() + sec2osticks(SWITCH_WAIT_TIME), os_checkSwitch);
+    }
+    else
+        os_setTimedCallback( &switchjob, os_getTime() + sec2osticks(SWITCH_SAMPLE_TIME), os_checkSwitch);
+    
+}
+  
+void protocol_init( ) {
+    // Reset the MAC state. Session and pending data transfers will be discarded.
+    LMIC_reset();
+    // Cause the RX windows to open earlier to accomodate issues caused by the 
+    // Arduino Mini's relatively slow (8 MHz) clock
+    LMIC_setClockError(MAX_CLOCK_ERROR * 20 / 100);
+    // Start job (sending automatically starts OTAA too)
+    os_send( &sendjob );
+    os_checkSwitch( &switchjob ); 
 }
 
 void protocol_updateDataFrame( uint8_t* buff, uint8_t size ) {
     txdata.buff = buff;
-    txdata.size  = size;
+    txdata.size = size;
 }
-    
-
-void do_send( osjob_t* j ) {
-    digitalWrite( A0, false );
-    if (LMIC.opmode & OP_TXRXPEND) {
-        PROTOCOL_PRINTLN(F("OP_TXRXPEND, not sending"));
-    } else {
-        // Prepare data transmission at the next possible time.
-        LMIC_setTxData2(1, txdata.buff, txdata.size, 0);
-        PROTOCOL_PRINTLN(F("SENDING...."));
-    }
-}
-
-
-void protocol_init( ) {
-
-    // Reset the MAC state. Session and pending data transfers will be discarded.
-    LMIC_reset();
-    
-    // Cause the RX windows to open earlier to accomodate issues caused by the 
-    // Arduino Mini's relatively slow (8 MHz) clock
-    LMIC_setClockError(MAX_CLOCK_ERROR * 20 / 100);
-    
-    // Start job (sending automatically starts OTAA too)
-    do_send(&sendjob);
-}
-
 
 void onEvent (ev_t ev) {
     PROTOCOL_PRINT(os_getTime());
@@ -125,9 +116,6 @@ void onEvent (ev_t ev) {
             LMIC_setLinkCheckMode(0);
             PROTOCOL_PRINTLN(F("EV_JOINED"));
             break;
-        case EV_RFU1:
-            PROTOCOL_PRINTLN(F("EV_RFU1"));
-            break;
         case EV_JOIN_FAILED:
             PROTOCOL_PRINTLN(F("EV_JOIN_FAILED"));
             break;
@@ -145,7 +133,7 @@ void onEvent (ev_t ev) {
               PROTOCOL_PRINTLN(F(" bytes of payload"));
             }
             // Schedule next transmission
-            os_setTimedCallback( &sendjob, os_getTime() + sec2osticks(TX_INTERVAL), do_send);
+            os_setTimedCallback( &sendjob, os_getTime() + sec2osticks(TX_INTERVAL), os_send);
             break;
         case EV_LOST_TSYNC:
             PROTOCOL_PRINTLN(F("EV_LOST_TSYNC"));
@@ -154,7 +142,6 @@ void onEvent (ev_t ev) {
             PROTOCOL_PRINTLN(F("EV_RESET"));
             break;
         case EV_RXCOMPLETE:
-            // data received in ping slot
             PROTOCOL_PRINTLN(F("EV_RXCOMPLETE"));
             break;
         case EV_LINK_DEAD:
@@ -164,7 +151,8 @@ void onEvent (ev_t ev) {
             PROTOCOL_PRINTLN(F("EV_LINK_ALIVE"));
             break;
          default:
-            PROTOCOL_PRINTLN(F("Unknown event"));
+            PROTOCOL_PRINT(F("Unknown event : "));
+            PROTOCOL_PRINTLN(ev);
             break;
     }
 }

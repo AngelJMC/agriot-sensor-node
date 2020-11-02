@@ -22,11 +22,10 @@
   {} /**< Debug Print Line Placeholder if Debug is disabled */
 #endif
 
+
 void sensors_init( );
 
-
 void sensors_update(  osjob_t* j );
-
 
 
 #endif // _SENSORS_H_

@@ -36,8 +36,6 @@
 #include <lmic.h>
 
 
-
-
 void setup() {
   
     Serial.begin(9600);
@@ -56,14 +54,8 @@ void setup() {
 
 
 void loop() {
-  
   cli_update( );
   os_runloop_once();
-  
-  if( !digitalRead( A1 ) ) 
-    protocol_doSend( );
-
-  
 }
 
 
