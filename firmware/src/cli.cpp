@@ -104,36 +104,47 @@ ack_t parseCommands(AsyncSerial &serial ) {
         printdebug( cmd, DEBUG );
     
     switch ( cmd[0] ) {
-    case 'E':
-      {
-          int err = parseStringHex( cfg.appEUI, cmd, (APPEUI_SIZE*2)+2 );
-          if( err )
-              return ack;
-          param_savecfg(&cfg);
-      }
-      break;
-    case 'K':
-      {
-          int err = parseStringHex( cfg.appkey, cmd, (APPKEY_SIZE*2)+2 );
-          if( err )
-              return ack;
-          param_savecfg(&cfg);
-      }
-      break;
-      case 'I':
-      {
-          Serial.print("Dev EUI: ");
-          printStringHex( cfg.devEUI, DEVEUI_SIZE);
-          Serial.print("\nApp EUI: ");
-          printStringHex( cfg.appEUI, APPEUI_SIZE);
-          Serial.print(F("\nApp Key: "));
-          printStringHex( cfg.appkey, APPKEY_SIZE);
-          Serial.print( EOL );
-      }
-      break;
+        case 'E': {
+            if( cmd[1] == ':') {
+                int err = parseStringHex( cfg.appEUI, cmd, (APPEUI_SIZE*2)+2 );
+                if( err )
+                return ack;
+                param_savecfg(&cfg);
+            }
+            else {
+                Serial.print(F("App EUI: "));
+                printStringHex( cfg.appEUI, APPEUI_SIZE);
+                Serial.print( EOL );
+            }
 
-      default:
-        break;
+            break;
+        }
+        
+        case 'K': {
+            if( cmd[1] == ':') {
+                int err = parseStringHex( cfg.appkey, cmd, (APPKEY_SIZE*2)+2 );
+                if( err )
+                    return ack;
+                param_savecfg(&cfg);
+            }
+            else {
+                Serial.print(F("App Key: "));
+                printStringHex( cfg.appkey, APPKEY_SIZE);
+                Serial.print( EOL );
+            }
+
+            break;
+        }
+        case 'D': {
+            Serial.print(F("Dev EUI: "));
+            printStringHex( cfg.devEUI, DEVEUI_SIZE);
+            Serial.print( EOL );  
+            
+            break;
+        }
+
+        default:
+            break;
     }
 
     ack.rp = OK;
@@ -142,16 +153,12 @@ ack_t parseCommands(AsyncSerial &serial ) {
 
 void sendresponse( ack_t *ack) {
 
-    if( ack->rp == OK ) { 
-        Serial.print( ack->type );
-        Serial.print("OK");
-        Serial.print( EOL );
+    switch( ack->rp ) {
+        case OK : Serial.print("OK"); break;
+        case NOK: Serial.print("NOK"); break;
+        default: break;
     }
-    else if( ack->rp == NOK ) {
-        Serial.print( ack->type );
-        Serial.print("NOK");
-        Serial.print( EOL );
-    }
+    Serial.print( EOL );
 }
 
 
