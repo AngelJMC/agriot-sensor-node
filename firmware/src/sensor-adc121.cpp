@@ -4,6 +4,10 @@
 #include "sensors.h"
 #include <CayenneLPP.h>
 
+//Schedule sensore measurement every this senconds
+#define SENSOR_INTERVAL (1*30)//seconds
+
+
 static osjob_t sensjob;
 CayenneLPP lpp(51);
 
@@ -66,7 +70,7 @@ void sensors_update( osjob_t* j ) {
     lpp.reset();
     lpp.addRelativeHumidity(1, soilm);
     protocol_updateDataFrame( lpp.getBuffer(), lpp.getSize() );
-    os_setTimedCallback( &sensjob, os_getTime() + sec2osticks(SAMPLING_TIME), sensors_update );
+    os_setTimedCallback( &sensjob, os_getTime() + sec2osticks(SENSOR_INTERVAL), sensors_update );
 }
 
 #endif

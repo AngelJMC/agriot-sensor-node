@@ -3,18 +3,18 @@
 
 #include <lmic.h>
 
-#define SAMPLING_TIME 30//seconds
+#ifdef __cplusplus
+extern "C"{
+#endif
 
 #define SENSORS_DEBUG 
-
-#define DEBUG_PRINTER Serial /**< Define where debug output will be printed.*/
 
 /* Setup debug printing macros. */
 #ifdef SENSORS_DEBUG
 #define SENSORS_PRINT(...)                                                       \
-  { DEBUG_PRINTER.print(__VA_ARGS__); }
+  { Serial.print(__VA_ARGS__); }
 #define SENSORS_PRINTLN(...)                                                     \
-  { DEBUG_PRINTER.println(__VA_ARGS__); }
+  { Serial.println(__VA_ARGS__); }
 #else
 #define SENSORS_PRINT(...)                                                       \
   {} /**< Debug Print Placeholder if Debug is disabled */
@@ -27,5 +27,8 @@ void sensors_init( );
 
 void sensors_update(  osjob_t* j );
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif // _SENSORS_H_

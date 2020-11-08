@@ -3,6 +3,10 @@
 #include "cfg.h"
 #include "protocol.h"
 
+// Schedule TX every this many seconds (might become longer due to duty cycle limitations).
+#define TX_INTERVAL ( 3*60 )//seconds
+#define ACK_DOWNLINK_INTERVAL ( (int32_t)24*60*60 ) / ( TX_INTERVAL*10 )
+
 enum {
     SWITCH_SAMPLE_TIME = 1,
     SWITCH_WAIT_TIME   = 10, //s
@@ -28,6 +32,7 @@ const lmic_pinmap lmic_pins = {
 static osjob_t sendjob;
 static osjob_t switchjob;
 struct txdata txdata;
+static uint8_t sendAck;
 
 // These callbacks are only used in over-the-air activation
 // This EUI must be in little-endian format, so least-significant-byte
@@ -61,8 +66,13 @@ void os_send( osjob_t* j ) {
     } 
     else {
         // Prepare data transmission at the next possible time.
-        LMIC_setTxData2(1, txdata.buff, txdata.size, 0);
-        Serial.println(F("Packet queued"));
+        if ( sendAck >= ACK_DOWNLINK_INTERVAL )
+            sendAck = 0;
+        
+        LMIC_setTxData2(1, txdata.buff, txdata.size, sendAck == 0);
+        Serial.print(F("Packet queued, sendAck: "));
+        Serial.println(sendAck);
+        ++sendAck;
     }
     // Next TX is scheduled after TX_COMPLETE event.
 }
@@ -82,12 +92,11 @@ void protocol_init( ) {
     LMIC_reset();
     // Cause the RX windows to open earlier to accomodate issues caused by the 
     // Arduino Mini's relatively slow (8 MHz) clock
-    LMIC_setClockError(MAX_CLOCK_ERROR * 20 / 100);
+    LMIC_setClockError(MAX_CLOCK_ERROR * 5 / 100);
 
     pinMode( GPIO_SWITCH, INPUT ); 
     pinMode( GPIO_LED, OUTPUT );
 
-    // Start job (sending automatically starts OTAA too)
     os_send( &sendjob );
     os_checkSwitch( &switchjob ); 
 }
@@ -114,12 +123,15 @@ void onEvent (ev_t ev) {
             PROTOCOL_PRINTLN(F("EV_BEACON_TRACKED"));
             break;
         case EV_JOINING:
+            /* Set default/start data rate  and transmit power for uplink*/
+            LMIC_setDrTxpow(DR_SF9,14);
+            /* set ADR mode (if mobile turn off) */
+            LMIC_setAdrMode(1);
             PROTOCOL_PRINTLN(F("EV_JOINING"));
             break;
         case EV_JOINED:
-            // Disable link check validation (automatically enabled
-            // during join, but not supported by TTN at this time).
             LMIC_setLinkCheckMode(0);
+            sendAck = 0;
             PROTOCOL_PRINTLN(F("EV_JOINED"));
             break;
         case EV_JOIN_FAILED:
@@ -131,18 +143,17 @@ void onEvent (ev_t ev) {
         case EV_TXCOMPLETE:
             PROTOCOL_PRINTLN(F("EV_TXCOMPLETE (includes waiting for RX windows)"));
             digitalWrite( GPIO_LED, true );
-            if (LMIC.txrxFlags & TXRX_ACK)
-              PROTOCOL_PRINTLN(F("Received ack"));
-            if (LMIC.dataLen) {
-              PROTOCOL_PRINTLN(F("Received "));
-              PROTOCOL_PRINTLN(LMIC.dataLen);
-              PROTOCOL_PRINTLN(F(" bytes of payload"));
+            if (LMIC.txrxFlags & TXRX_ACK){
+                PROTOCOL_PRINTLN(F("Received ack"));
             }
+            if (LMIC.dataLen) {
+                PROTOCOL_PRINT(F("Received "));
+                PROTOCOL_PRINT(LMIC.dataLen);
+                PROTOCOL_PRINTLN(F(" bytes of payload"));
+            }
+            LMIC_setLinkCheckMode(0);
             // Schedule next transmission
             os_setTimedCallback( &sendjob, os_getTime() + sec2osticks(TX_INTERVAL), os_send);
-            break;
-        case EV_LOST_TSYNC:
-            PROTOCOL_PRINTLN(F("EV_LOST_TSYNC"));
             break;
         case EV_RESET:
             PROTOCOL_PRINTLN(F("EV_RESET"));
