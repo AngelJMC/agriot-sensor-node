@@ -22,58 +22,6 @@ static dssens sensor;
 CayenneLPP lpp(51);
 OneWire  ds( DSPIN );  // on pin 10 (a 4.7K resistor is necessary)
 
-static float ds_readTemperature( struct dssens* ds_hdl );
-
-void sensors_init( ) {
-
-    if ( !ds.search(sensor.addr)) {
-        SENSORS_PRINTLN("No more addresses.");
-        ds.reset_search();
-        delay(250);
-        return;
-    }
-    
-    if (OneWire::crc8(sensor.addr, 7) != sensor.addr[7]) {
-        SENSORS_PRINTLN("CRC is not valid!");
-        return;
-    }
-  
-    // the first ROM byte indicates which chip
-    switch (sensor.addr[0]) {
-      case 0x10:
-        SENSORS_PRINTLN("  Chip = DS18S20");  // or old DS1820
-        sensor.type_s = 1;
-        break;
-      case 0x28:
-        SENSORS_PRINTLN("  Chip = DS18B20");
-        sensor.type_s = 0;
-        break;
-      case 0x22:
-        SENSORS_PRINTLN("  Chip = DS1822");
-        sensor.type_s = 0;
-        break;
-      default:
-        SENSORS_PRINTLN("Device is not a DS18x20 family device.");
-        return;
-    } 
-    // Schedule next transmission
-    os_setCallback( &sensjob, sensors_update );
-}
-
-
-void sensors_update( osjob_t* j ) {
-
-    float t = ds_readTemperature( &sensor );
-    SENSORS_PRINT("Temperature: "); 
-    SENSORS_PRINT(t);
-    SENSORS_PRINTLN(" *C ");
-    lpp.reset();
-    lpp.addTemperature(1, t);
-    protocol_updateDataFrame( lpp.getBuffer(), lpp.getSize() );
-
-    os_setTimedCallback( &sensjob, os_getTime() + sec2osticks(SENSOR_INTERVAL), sensors_update );
-}
-
 
 static float ds_readTemperature( struct dssens* ds_hdl ) {
     ds.reset();
@@ -108,6 +56,55 @@ static float ds_readTemperature( struct dssens* ds_hdl ) {
       //// default is 12 bit resolution, 750 ms conversion time
     }
     return (float)raw / 16.0;
+}
+
+static void sensors_update( osjob_t* j ) {
+
+    float t = ds_readTemperature( &sensor );
+    SENSORS_PRINT_F("Temperature: "); 
+    SENSORS_PRINT(t);
+    SENSORS_PRINT_F(" *C\n");
+    lpp.reset();
+    lpp.addTemperature(1, t);
+    protocol_updateDataFrame( lpp.getBuffer(), lpp.getSize() );
+
+    os_setTimedCallback( &sensjob, os_getTime() + sec2osticks(SENSOR_INTERVAL), sensors_update );
+}
+
+void sensors_init( ) {
+
+    if ( !ds.search(sensor.addr)) {
+        SENSORS_PRINT_F("No more addresses.\n");
+        ds.reset_search();
+        delay(250);
+        return;
+    }
+    
+    if (OneWire::crc8(sensor.addr, 7) != sensor.addr[7]) {
+        SENSORS_PRINT_F("CRC is not valid!\n");
+        return;
+    }
+  
+    // the first ROM byte indicates which chip
+    switch (sensor.addr[0]) {
+      case 0x10:
+        SENSORS_PRINT_F("  Chip = DS18S20\n");  // or old DS1820
+        sensor.type_s = 1;
+        break;
+      case 0x28:
+        SENSORS_PRINT_F("  Chip = DS18B20\n");
+        sensor.type_s = 0;
+        break;
+      case 0x22:
+        SENSORS_PRINT_F("  Chip = DS1822\n");
+        sensor.type_s = 0;
+        break;
+      default:
+        SENSORS_PRINT_F("Device is not a DS18x20 family device.\n");
+        return;
+    } 
+    // Schedule next transmission
+    os_setCallback( &sensjob, sensors_update );
 }
 
 #endif

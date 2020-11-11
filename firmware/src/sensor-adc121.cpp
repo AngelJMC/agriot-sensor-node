@@ -26,26 +26,14 @@ enum {
 
 static unsigned int adcval;    
 
-double mapf(double val, double in_min, double in_max, double out_min, double out_max) {
+static double mapf(double val, double in_min, double in_max, double out_min, double out_max) {
     
     val = val < in_min ? in_min : val;
     val = val > in_max ? in_max : val;
     return (val - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
-void sensors_init( ) {
-
-    Wire.begin();
-    Wire.beginTransmission( ADDR_ADC121 );        // transmit to device
-    Wire.write( REG_ADDR_CONFIG );                // Configuration Register
-    Wire.write( 0x02 );  //0x20  //0x10 works
-    Wire.endTransmission(); 
-    
-    /* Schedule next transmission */
-    os_setCallback( &sensjob, sensors_update );
-}
-
-void sensors_update( osjob_t* j ) {
+static void sensors_update( osjob_t* j ) {
 
     Wire.beginTransmission( ADDR_ADC121 );        // transmit to device
     Wire.write( REG_ADDR_RESULT );                // get reuslt
@@ -59,10 +47,10 @@ void sensors_update( osjob_t* j ) {
     
     float soilm = mapf( adcval, 1580, 3690, 100.0, 0.0);
 
-    SENSORS_PRINT("Soil Moisture: "); 
+    SENSORS_PRINT_F("Soil Moisture: "); 
     SENSORS_PRINT(soilm);
-    SENSORS_PRINT(" %\t");
-    SENSORS_PRINT("   -- ADC VAL: "); 
+    SENSORS_PRINT_F(" %\t");
+    SENSORS_PRINT_F("   -- ADC VAL: "); 
     SENSORS_PRINTLN(adcval);
     
 
@@ -72,5 +60,20 @@ void sensors_update( osjob_t* j ) {
     protocol_updateDataFrame( lpp.getBuffer(), lpp.getSize() );
     os_setTimedCallback( &sensjob, os_getTime() + sec2osticks(SENSOR_INTERVAL), sensors_update );
 }
+
+
+void sensors_init( ) {
+
+    Wire.begin();
+    Wire.beginTransmission( ADDR_ADC121 );        // transmit to device
+    Wire.write( REG_ADDR_CONFIG );                // Configuration Register
+    Wire.write( 0x02 );  //0x20  //0x10 works
+    Wire.endTransmission(); 
+    
+    /* Schedule next transmission */
+    os_setCallback( &sensjob, sensors_update );
+}
+
+
 
 #endif

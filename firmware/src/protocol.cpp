@@ -70,8 +70,8 @@ void os_send( osjob_t* j ) {
             sendAck = 0;
         
         LMIC_setTxData2(1, txdata.buff, txdata.size, sendAck == 0);
-        Serial.print(F("Packet queued, sendAck: "));
-        Serial.println(sendAck);
+        Serial.print(F("Packet queued, packets to next ack: "));
+        Serial.println(ACK_DOWNLINK_INTERVAL - sendAck);
         ++sendAck;
     }
     // Next TX is scheduled after TX_COMPLETE event.

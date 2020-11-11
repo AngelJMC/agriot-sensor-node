@@ -154,8 +154,8 @@ ack_t parseCommands(AsyncSerial &serial ) {
 void sendresponse( ack_t *ack) {
 
     switch( ack->rp ) {
-        case OK : Serial.print("OK"); break;
-        case NOK: Serial.print("NOK"); break;
+        case OK : Serial.print(F("OK")); break;
+        case NOK: Serial.print(F("NOK")); break;
         default: break;
     }
     Serial.print( EOL );

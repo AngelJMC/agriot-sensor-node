@@ -15,6 +15,8 @@ extern "C"{
   { Serial.print(__VA_ARGS__); }
 #define SENSORS_PRINTLN(...)                                                     \
   { Serial.println(__VA_ARGS__); }
+#define SENSORS_PRINT_F(...)                                                     \
+  { Serial.print(F(__VA_ARGS__)); }
 #else
 #define SENSORS_PRINT(...)                                                       \
   {} /**< Debug Print Placeholder if Debug is disabled */
@@ -24,8 +26,6 @@ extern "C"{
 
 
 void sensors_init( );
-
-void sensors_update(  osjob_t* j );
 
 #ifdef __cplusplus
 }
