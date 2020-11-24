@@ -45,7 +45,7 @@ static void sensors_update( osjob_t* j ) {
       adcval |= Wire.read();
     }
     
-    float soilm = mapf( adcval, 1580, 3690, 100.0, 0.0);
+    float soilm = mapf( adcval, 1580, 2600, 100.0, 0.0);
 
     SENSORS_PRINT_F("Soil Moisture: "); 
     SENSORS_PRINT(soilm);

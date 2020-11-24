@@ -24,7 +24,7 @@ extern struct cfg cfg;
 
 void param_load( void ); 
 
-void param_savecfg( struct cfg const* cfg );
+void param_savecfg( );
 
 #ifdef __cplusplus
 }

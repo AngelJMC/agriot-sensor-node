@@ -12,7 +12,7 @@ void param_setdefault( struct cfg* cfg ) {
     memset(cfg->appEUI, 0, APPEUI_SIZE);  
 }
 
-void param_savecfg( struct cfg const* cfg ) {
+void param_savecfg( ) {
     EEPROM.put( eeadrInfo, cfg );
 }
 

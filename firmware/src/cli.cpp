@@ -108,14 +108,13 @@ ack_t parseCommands(AsyncSerial &serial ) {
             if( cmd[1] == ':') {
                 int err = parseStringHex( cfg.appEUI, cmd, (APPEUI_SIZE*2)+2 );
                 if( err )
-                return ack;
-                param_savecfg(&cfg);
+                    return ack;
+                param_savecfg( );
             }
-            else {
-                Serial.print(F("App EUI: "));
-                printStringHex( cfg.appEUI, APPEUI_SIZE);
-                Serial.print( EOL );
-            }
+            
+            Serial.print(F("App EUI: "));
+            printStringHex( cfg.appEUI, APPEUI_SIZE);
+            Serial.print( EOL );
 
             break;
         }
@@ -125,13 +124,13 @@ ack_t parseCommands(AsyncSerial &serial ) {
                 int err = parseStringHex( cfg.appkey, cmd, (APPKEY_SIZE*2)+2 );
                 if( err )
                     return ack;
-                param_savecfg(&cfg);
+                param_savecfg( );
             }
-            else {
-                Serial.print(F("App Key: "));
-                printStringHex( cfg.appkey, APPKEY_SIZE);
-                Serial.print( EOL );
-            }
+            
+            Serial.print(F("App Key: "));
+            printStringHex( cfg.appkey, APPKEY_SIZE);
+            Serial.print( EOL );
+            
 
             break;
         }
@@ -146,7 +145,7 @@ ack_t parseCommands(AsyncSerial &serial ) {
         default:
             break;
     }
-
+    memset ( data, 0, sizeof(byte)*dataLength);
     ack.rp = OK;
     return ack;
 }
