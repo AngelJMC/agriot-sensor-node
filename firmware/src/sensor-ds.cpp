@@ -5,7 +5,7 @@
 #include <CayenneLPP.h>
 
 //Schedule sensore measurement every this senconds
-#define SENSOR_INTERVAL (1*30)//seconds
+#define SENSOR_INTERVAL (2*60)//seconds
 
 struct dssens {
   byte type_s;
@@ -60,6 +60,7 @@ static float ds_readTemperature( struct dssens* ds_hdl ) {
 
 static void sensors_update( osjob_t* j ) {
 
+    os_avoidSleep();
     float t = ds_readTemperature( &sensor );
     SENSORS_PRINT_F("Temperature: "); 
     SENSORS_PRINT(t);
@@ -69,6 +70,8 @@ static void sensors_update( osjob_t* j ) {
     protocol_updateDataFrame( lpp.getBuffer(), lpp.getSize() );
 
     os_setTimedCallback( &sensjob, os_getTime() + sec2osticks(SENSOR_INTERVAL), sensors_update );
+    Serial.flush();
+    os_acceptSleep();
 }
 
 void sensors_init( ) {

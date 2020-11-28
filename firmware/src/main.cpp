@@ -26,5 +26,6 @@ void setup() {
 
 
 void loop() {
-    os_runloop_once();
+    os_runloop_once( ); 
+    protocol_checkSwitch( );
 }

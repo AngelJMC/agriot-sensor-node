@@ -5,6 +5,12 @@
 
 #define EOL            '\n'
 
+
+enum {
+    CLI_ACTIVE_TIME  = 3*60, /*CLI is only active for 3 minutes after power-up.*/
+    CLI_JOB_INTERVAL = 250   /*Job interval execution in milliseconds*/
+};
+
 enum loglevel{
     ECHO = 0,
     DISABLE = 0,
@@ -163,14 +169,15 @@ void sendresponse( ack_t *ack) {
 
 void cli_update( osjob_t* j ) {
     asyncSerial.AsyncRecieve();
-    os_setTimedCallback( &clijob, os_getTime() + ms2osticks(250), cli_update );
+    if( osticks2sec(os_getTime()) < CLI_ACTIVE_TIME )
+        os_setTimedCallback( &clijob, os_getTime() + ms2osticks(CLI_JOB_INTERVAL), cli_update );
 }
 
 
 void cli_init( void ) {
     asyncSerial.FinishChar = NEW_LINE;
     asyncSerial.IgnoreChar = CARRIAGE_RETURN;
-    os_setTimedCallback( &clijob, os_getTime() +ms2osticks(20), cli_update );
+    os_setTimedCallback( &clijob, os_getTime() +ms2osticks(CLI_JOB_INTERVAL), cli_update );
 }
 
 

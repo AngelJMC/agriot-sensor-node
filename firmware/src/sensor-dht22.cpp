@@ -5,14 +5,14 @@
 #include <CayenneLPP.h>
 
 //Schedule sensore measurement every this senconds
-#define SENSOR_INTERVAL (1*30)//seconds
+#define SENSOR_INTERVAL (2*60)//seconds
 
 static osjob_t sensjob;
 CayenneLPP lpp(51);
 DHT dht( 3, DHT22 ); 
 
 static void sensors_update( osjob_t* j ) {
-
+    os_avoidSleep();
     float t = dht.readTemperature( ); // Read temperature as Celsius
     float h = dht.readHumidity( );
     SENSORS_PRINT_F("Temperature: "); 
@@ -27,6 +27,8 @@ static void sensors_update( osjob_t* j ) {
     protocol_updateDataFrame( lpp.getBuffer(), lpp.getSize() );
     // Schedule next sensor reading
     os_setTimedCallback( &sensjob, os_getTime() + sec2osticks(SENSOR_INTERVAL), sensors_update );
+    Serial.flush();
+    os_acceptSleep();
 }
 
 void sensors_init( ) {

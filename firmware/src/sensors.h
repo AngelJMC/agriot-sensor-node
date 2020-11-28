@@ -22,6 +22,8 @@ extern "C"{
   {} /**< Debug Print Placeholder if Debug is disabled */
 #define SENSORS_PRINTLN(...)                                                     \
   {} /**< Debug Print Line Placeholder if Debug is disabled */
+#define SENSORS_PRINT_F(...)                                                     \
+  {} 
 #endif
 
 
