@@ -5,7 +5,7 @@
 #include <CayenneLPP.h>
 
 //Schedule sensore measurement every this senconds
-#define SENSOR_INTERVAL (1*30)//seconds
+#define SENSOR_INTERVAL (2*60)//seconds
 
 enum {
     INVERTED = 1,

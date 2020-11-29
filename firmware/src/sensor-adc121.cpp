@@ -5,7 +5,7 @@
 #include <CayenneLPP.h>
 
 //Schedule sensore measurement every this senconds
-#define SENSOR_INTERVAL (1*30)//seconds
+#define SENSOR_INTERVAL (2*60)//seconds
 
 
 static osjob_t sensjob;
@@ -35,6 +35,7 @@ static double mapf(double val, double in_min, double in_max, double out_min, dou
 
 static void sensors_update( osjob_t* j ) {
 
+    os_avoidSleep();
     Wire.beginTransmission( ADDR_ADC121 );        // transmit to device
     Wire.write( REG_ADDR_RESULT );                // get reuslt
     Wire.endTransmission();
@@ -59,6 +60,8 @@ static void sensors_update( osjob_t* j ) {
     lpp.addRelativeHumidity(1, soilm);
     protocol_updateDataFrame( lpp.getBuffer(), lpp.getSize() );
     os_setTimedCallback( &sensjob, os_getTime() + sec2osticks(SENSOR_INTERVAL), sensors_update );
+    Serial.flush();
+    os_acceptSleep();
 }
 
 

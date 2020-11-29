@@ -4,13 +4,10 @@
 #include "protocol.h"
 
 // Schedule TX every this many seconds (might become longer due to duty cycle limitations).
-#define TX_INTERVAL ( 3*60 )//seconds
+#define TX_INTERVAL ( 5*60 )//seconds
 #define ACK_DOWNLINK_INTERVAL ( (int32_t)24*60*60 ) / ( TX_INTERVAL*10 )
 
-enum {
-    SWITCH_SAMPLE_TIME = 1,
-    SWITCH_WAIT_TIME   = 10, //s
-    
+enum {    
     GPIO_LED           = A0,        
     GPIO_SWITCH        = A1
 };
@@ -30,9 +27,9 @@ const lmic_pinmap lmic_pins = {
 };
 
 static osjob_t sendjob;
-static osjob_t switchjob;
 struct txdata txdata;
 static uint8_t sendAck;
+static uint8_t lastStatuSwitch;
 
 // These callbacks are only used in over-the-air activation
 // This EUI must be in little-endian format, so least-significant-byte
@@ -66,6 +63,7 @@ void os_send( osjob_t* j ) {
     } 
     else {
         // Prepare data transmission at the next possible time.
+        os_avoidSleep();
         if ( sendAck >= ACK_DOWNLINK_INTERVAL )
             sendAck = 0;
         
@@ -77,18 +75,17 @@ void os_send( osjob_t* j ) {
     // Next TX is scheduled after TX_COMPLETE event.
 }
 
-void os_checkSwitch( osjob_t* j ) {
-    if( !digitalRead( GPIO_SWITCH ) ) {
+void protocol_checkSwitch(  ) {
+    uint8_t statusSwitch = digitalRead( GPIO_SWITCH );
+    if( !statusSwitch && lastStatuSwitch ) {
         os_setCallback( &sendjob, os_send);
-        os_setTimedCallback( &switchjob, os_getTime() + sec2osticks(SWITCH_WAIT_TIME), os_checkSwitch);
     }
-    else
-        os_setTimedCallback( &switchjob, os_getTime() + sec2osticks(SWITCH_SAMPLE_TIME), os_checkSwitch);
-    
-}
+    lastStatuSwitch = statusSwitch;
+    }
   
 void protocol_init( ) {
     // Reset the MAC state. Session and pending data transfers will be discarded.
+    os_avoidSleep();
     LMIC_reset();
     // Cause the RX windows to open earlier to accomodate issues caused by the 
     // Arduino Mini's relatively slow (8 MHz) clock
@@ -98,7 +95,6 @@ void protocol_init( ) {
     pinMode( GPIO_LED, OUTPUT );
 
     os_send( &sendjob );
-    os_checkSwitch( &switchjob ); 
 }
 
 void protocol_updateDataFrame( uint8_t* buff, uint8_t size ) {
@@ -132,6 +128,7 @@ void onEvent (ev_t ev) {
         case EV_JOINED:
             LMIC_setLinkCheckMode(0);
             sendAck = 0;
+            os_acceptSleep();
             PROTOCOL_PRINTLN(F("EV_JOINED"));
             break;
         case EV_JOIN_FAILED:
@@ -154,6 +151,8 @@ void onEvent (ev_t ev) {
             LMIC_setLinkCheckMode(0);
             // Schedule next transmission
             os_setTimedCallback( &sendjob, os_getTime() + sec2osticks(TX_INTERVAL), os_send);
+            Serial.flush();
+            os_acceptSleep();
             break;
         case EV_RESET:
             PROTOCOL_PRINTLN(F("EV_RESET"));
