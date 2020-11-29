@@ -4,9 +4,9 @@ EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
 Sheet 1 1
-Title ""
-Date ""
-Rev ""
+Title "AGRIOT LoRa Sensor"
+Date "2020-09-10"
+Rev "1.0"
 Comp ""
 Comment1 ""
 Comment2 ""
@@ -881,12 +881,6 @@ F 3 "~" H 1200 1150 50  0001 C CNN
 	1    1200 1150
 	1    0    0    -1  
 $EndComp
-Text Notes 7400 7500 0    50   ~ 0
-AGRIOT LoRa Sensor
-Text Notes 10600 7650 0    50   ~ 0
-1.0
-Text Notes 8100 7650 0    50   ~ 0
-2020/09/10
 Wire Wire Line
 	1650 4650 2000 4650
 Wire Wire Line
