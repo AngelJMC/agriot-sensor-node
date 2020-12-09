@@ -31,3 +31,6 @@
 [submodule "firmware/lib/low-power"]
 	path = firmware/lib/low-power
 	url = https://github.com/rocketscream/Low-Power
+[submodule "firmware/lib/MicroNMEA"]
+	path = firmware/lib/MicroNMEA
+	url = https://github.com/stevemarple/MicroNMEA

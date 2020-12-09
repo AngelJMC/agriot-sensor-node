@@ -1,3 +1,10 @@
+/*
+    Project: <https://github.com/AngelJMC/AGRIOT_lora-sensor-node>   
+    Copyright (c) 2020 Angel Maldonado <angelgesus@gmail.com>. 
+    Licensed under the MIT License: <http://opensource.org/licenses/MIT>.
+    SPDX-License-Identifier: MIT 
+*/
+
 #ifdef SENS_SOIL_MOISTURE_ADC
 #include "protocol.h"
 #include <Wire.h>
@@ -5,7 +12,7 @@
 #include <CayenneLPP.h>
 
 //Schedule sensore measurement every this senconds
-#define SENSOR_INTERVAL (2*60)//seconds
+#define SENSOR_INTERVAL (5*60)//seconds
 
 
 static osjob_t sensjob;
@@ -42,23 +49,20 @@ static void sensors_update( osjob_t* j ) {
 
     Wire.requestFrom( ADDR_ADC121, 2 );           // request 2byte from device
     if( Wire.available() == 2 ) {
-      adcval = (Wire.read()&0x0f)<<8;
-      adcval |= Wire.read();
+        adcval = (Wire.read()&0x0f)<<8;
+        adcval |= Wire.read();
+
+        float soilm = mapf( adcval, 1580, 2600, 100.0, 0.0);
+
+        SENSORS_PRINT_F("Soil Moisture: "); SENSORS_PRINT(soilm); SENSORS_PRINT_F(" %\t");
+        SENSORS_PRINT_F("   -- ADC VAL: "); SENSORS_PRINTLN(adcval);
+        /* Update Data Frame to Send */
+        lpp.reset();
+        lpp.addRelativeHumidity(1, soilm);
+        protocol_updateDataFrame( lpp.getBuffer(), lpp.getSize() );
     }
-    
-    float soilm = mapf( adcval, 1580, 2600, 100.0, 0.0);
 
-    SENSORS_PRINT_F("Soil Moisture: "); 
-    SENSORS_PRINT(soilm);
-    SENSORS_PRINT_F(" %\t");
-    SENSORS_PRINT_F("   -- ADC VAL: "); 
-    SENSORS_PRINTLN(adcval);
-    
-
-    /* Update Data Frame to Send */
-    lpp.reset();
-    lpp.addRelativeHumidity(1, soilm);
-    protocol_updateDataFrame( lpp.getBuffer(), lpp.getSize() );
+    /* Schedule next sensor reading */
     os_setTimedCallback( &sensjob, os_getTime() + sec2osticks(SENSOR_INTERVAL), sensors_update );
     Serial.flush();
     os_acceptSleep();
@@ -73,8 +77,8 @@ void sensors_init( ) {
     Wire.write( 0x02 );  //0x20  //0x10 works
     Wire.endTransmission(); 
     
-    /* Schedule next transmission */
-    os_setCallback( &sensjob, sensors_update );
+    /* Schedule the first sensor reading*/
+    os_setTimedCallback(&sensjob, os_getTime() + sec2osticks(10), sensors_update);
 }
 
 

@@ -1,11 +1,17 @@
+/*
+    Project: <https://github.com/AngelJMC/AGRIOT_lora-sensor-node>   
+    Copyright (c) 2020 Angel Maldonado <angelgesus@gmail.com>. 
+    Licensed under the MIT License: <http://opensource.org/licenses/MIT>.
+    SPDX-License-Identifier: MIT 
+*/
+
 #include <lmic.h>
 #include <hal/hal.h>
 #include "cfg.h"
 #include "protocol.h"
 
 // Schedule TX every this many seconds (might become longer due to duty cycle limitations).
-#define TX_INTERVAL ( 5*60 )//seconds
-#define ACK_DOWNLINK_INTERVAL ( (int32_t)24*60*60 ) / ( TX_INTERVAL*10 )
+#define ACK_DOWNLINK_INTERVAL ( (int32_t)24*60*60 ) / ( 5*60*10 )
 
 enum {    
     GPIO_LED           = A0,        
@@ -58,9 +64,11 @@ void os_getDevKey (u1_t* buf) {
 void os_send( osjob_t* j ) {
     // Check if there is not a current TX/RX job running
     digitalWrite( GPIO_LED, false );
+
     if (LMIC.opmode & OP_TXRXPEND) {
         PROTOCOL_PRINTLN(F("OP_TXRXPEND, not sending"));
-    } 
+        os_setTimedCallback( &sendjob, os_getTime() + sec2osticks(10), os_send);
+    }
     else {
         // Prepare data transmission at the next possible time.
         os_avoidSleep();
@@ -72,7 +80,6 @@ void os_send( osjob_t* j ) {
         Serial.println(ACK_DOWNLINK_INTERVAL - sendAck);
         ++sendAck;
     }
-    // Next TX is scheduled after TX_COMPLETE event.
 }
 
 void protocol_checkSwitch(  ) {
@@ -94,12 +101,13 @@ void protocol_init( ) {
     pinMode( GPIO_SWITCH, INPUT ); 
     pinMode( GPIO_LED, OUTPUT );
 
-    os_send( &sendjob );
+    LMIC_startJoining ();
 }
 
 void protocol_updateDataFrame( uint8_t* buff, uint8_t size ) {
     txdata.buff = buff;
     txdata.size = size;
+    os_send( &sendjob );
 }
 
 void onEvent (ev_t ev) {
@@ -129,13 +137,17 @@ void onEvent (ev_t ev) {
             LMIC_setLinkCheckMode(0);
             sendAck = 0;
             os_acceptSleep();
+            digitalWrite( GPIO_LED, true );
+            os_send( &sendjob );
             PROTOCOL_PRINTLN(F("EV_JOINED"));
             break;
         case EV_JOIN_FAILED:
             PROTOCOL_PRINTLN(F("EV_JOIN_FAILED"));
+            LMIC_tryRejoin();
             break;
         case EV_REJOIN_FAILED:
             PROTOCOL_PRINTLN(F("EV_REJOIN_FAILED"));
+            LMIC_tryRejoin();
             break;
         case EV_TXCOMPLETE:
             PROTOCOL_PRINTLN(F("EV_TXCOMPLETE (includes waiting for RX windows)"));
@@ -149,8 +161,6 @@ void onEvent (ev_t ev) {
                 PROTOCOL_PRINTLN(F(" bytes of payload"));
             }
             LMIC_setLinkCheckMode(0);
-            // Schedule next transmission
-            os_setTimedCallback( &sendjob, os_getTime() + sec2osticks(TX_INTERVAL), os_send);
             Serial.flush();
             os_acceptSleep();
             break;

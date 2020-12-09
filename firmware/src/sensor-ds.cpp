@@ -1,3 +1,10 @@
+/*
+    Project: <https://github.com/AngelJMC/AGRIOT_lora-sensor-node>   
+    Copyright (c) 2020 Angel Maldonado <angelgesus@gmail.com>. 
+    Licensed under the MIT License: <http://opensource.org/licenses/MIT>.
+    SPDX-License-Identifier: MIT 
+*/
+
 #ifdef SENS_DS
 #include "protocol.h"
 #include "sensors.h"
@@ -5,7 +12,7 @@
 #include <CayenneLPP.h>
 
 //Schedule sensore measurement every this senconds
-#define SENSOR_INTERVAL (2*60)//seconds
+#define SENSOR_INTERVAL (5*60)//seconds
 
 struct dssens {
   byte type_s;
@@ -106,8 +113,9 @@ void sensors_init( ) {
         SENSORS_PRINT_F("Device is not a DS18x20 family device.\n");
         return;
     } 
-    // Schedule next transmission
-    os_setCallback( &sensjob, sensors_update );
+    
+    /* Schedule the first sensor reading*/
+    os_setTimedCallback(&sensjob, os_getTime() + sec2osticks(10), sensors_update);
 }
 
 #endif
