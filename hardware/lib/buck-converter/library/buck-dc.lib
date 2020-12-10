@@ -1,0 +1,19 @@
+EESchema-LIBRARY Version 2.4
+#encoding utf-8
+#
+# DC-DC_Buck_Step_Module-dc-dc_module
+#
+DEF DC-DC_Buck_Step_Module-dc-dc_module M 0 40 Y Y 1 F N
+F0 "M" 400 -100 50 H V C CNN
+F1 "DC-DC_Buck_Step_Module-dc-dc_module" 0 250 50 H V C CNN
+F2 "" 200 -400 50 H I C CNN
+F3 "" 200 -400 50 H I C CNN
+DRAW
+S -300 150 300 -200 0 1 0 N
+X VIN 1 -600 50 300 R 50 50 1 1 W
+X VOUT 2 600 50 300 L 50 50 1 1 w
+X GND 3 0 -500 300 U 50 50 1 1 B
+ENDDRAW
+ENDDEF
+#
+#End Library

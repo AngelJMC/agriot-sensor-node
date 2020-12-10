@@ -1,0 +1,189 @@
+EESchema-DOCLIB  Version 2.0
+#
+$CMP ARDUINO_Due
+D Arduino Due
+K U ARDUINO DUE
+F Arduino/arduino-Due-schematic.pdf
+$ENDCMP
+#
+$CMP ARDUINO_Ethernet_r3
+D Arduino Ethernet r3
+K U ARDUINO ETHERNET
+F Arduino/arduino-ethernet-R3-schematic.pdf
+$ENDCMP
+#
+$CMP ARDUINO_GTFT
+D Arduino Graphical TFT Display
+K U ARDUINO GTFT
+F Arduino/GLCD_sch.pdf
+$ENDCMP
+#
+$CMP ARDUINO_Leonardo
+D Arduino Leonardo
+K U ARDUINO LEONARDO
+F Arduino/arduino-leonardo-schematic_3b.pdf
+$ENDCMP
+#
+$CMP ARDUINO_Mega2560r3
+D Arduino Mega 2560 r3
+K U ARDUINO MEGA
+F Arduino/arduino-mega2560_R3-sch.pdf
+$ENDCMP
+#
+$CMP ARDUINO_MegaADKr3
+D Arduino Mega ADK r3
+K U ARDUINO ADK
+F Arduino/ADK_MEGA_2560-Rev2-sch.pdf
+$ENDCMP
+#
+$CMP ARDUINO_Micro
+D Arduino Micro
+K U ARDUINO
+F Arduino/arduino-micro-schematic.pdf
+$ENDCMP
+#
+$CMP ARDUINO_Mini03
+D Arduino Mini revision 03
+K U ARDUINO MINI
+F Arduino/arduino_mini_schematic03.pdf
+$ENDCMP
+#
+$CMP ARDUINO_Mini03ALL
+D Arduino Mini revision 03 all pins
+K U ARDUINO MINI
+F Arduino/arduino_mini_schematic03.pdf
+$ENDCMP
+#
+$CMP ARDUINO_Mini03DIP
+D Arduino Mini revision 03 dip pins only
+K U ARDUINO MINI
+F Arduino/arduino_mini_schematic03.pdf
+$ENDCMP
+#
+$CMP ARDUINO_Mini04
+D Arduino Mini revision 04
+K U ARDUINO MINI
+F Arduino/arduino_mini_schematic04.pdf
+$ENDCMP
+#
+$CMP ARDUINO_Mini04ALL
+D Arduino Mini revision 04 all pins
+K U ARDUINO MINI
+F Arduino/arduino_mini_schematic04.pdf
+$ENDCMP
+#
+$CMP ARDUINO_Mini04DIP
+D Arduino Mini revision 04 dip pins only
+K U ARDUINO MINI
+F Arduino/arduino_mini_schematic04.pdf
+$ENDCMP
+#
+$CMP ARDUINO_Mini05
+D Arduino Mini revision 05
+K U ARDUINO MINI
+F Arduino/arduino_mini_schematic05.pdf
+$ENDCMP
+#
+$CMP ARDUINO_Mini05ALL
+D Arduino Mini revision 05 all pins
+K U ARDUINO MINI
+F Arduino/arduino_mini_schematic05.pdf
+$ENDCMP
+#
+$CMP ARDUINO_Mini05DIP
+D Arduino Mini revision 05 dip pins only
+K U ARDUINO MINI
+F Arduino/arduino_mini_schematic05.pdf
+$ENDCMP
+#
+$CMP ARDUINO_Nano
+D Arduino Nano
+K U ARDUINO NANO
+F Arduino/ArduinoNano30Schematic.pdf
+$ENDCMP
+#
+$CMP ARDUINO_Pro-Mini
+D ARDUINO Pro Mini
+K U ARDUINO MINI
+F Arduino/Arduino-Pro-Mini-v13.pdf
+$ENDCMP
+#
+$CMP ARDUINO_Pro-MiniALL
+D ARDUINO Pro Mini all pins
+K U ARDUINO MINI
+F Arduino/Arduino-Pro-Mini-v13.pdf
+$ENDCMP
+#
+$CMP ARDUINO_Pro-MiniALL-Aliexpress
+D ARDUINO Pro Mini all pins
+K U ARDUINO MINI
+F Arduino/Arduino-Pro-Mini-v13.pdf
+$ENDCMP
+#
+$CMP ARDUINO_Pro-MiniDIP
+D ARDUINO Pro Mini dip pins only
+K U ARDUINO MINI
+F Arduino/Arduino-Pro-Mini-v13.pdf
+$ENDCMP
+#
+$CMP ARDUINO_UNOr3
+D Arduino Uno r3
+K U ARDUINO UNO
+F Arduino/Arduino_Uno_Rev3-schematic.pdf
+$ENDCMP
+#
+$CMP ARDUINO_Yun
+D Arduino Yun
+K U ARDUINO YUN
+F Arduino/arduino-Yun-schematic.pdf
+$ENDCMP
+#
+$CMP ATMEGA168A-P
+D ATMEGA168A, PDIP28 Narrow, 16k Flash, 1kB SRAM, 512B EEPROM
+K AVR 8bit Microcontroller MegaAVR
+F http://www.atmel.com/images/atmel-8271-8-bit-avr-microcontroller-atmega48a-48pa-88a-88pa-168a-168pa-328-328p_datasheet.pdf
+$ENDCMP
+#
+$CMP ATMEGA168PA-P
+D ATMEGA168PA, PDIP28 Narrow, 16k Flash, 1kB SRAM, 512B EEPROM
+K AVR 8bit Microcontroller MegaAVR PicoPower
+F http://www.atmel.com/images/atmel-8271-8-bit-avr-microcontroller-atmega48a-48pa-88a-88pa-168a-168pa-328-328p_datasheet.pdf
+$ENDCMP
+#
+$CMP ATMEGA328-P
+D ATMEGA328, PDIP28 Narrow, 32k Flash, 2kB SRAM, 1kB EEPROM
+K AVR 8bit Microcontroller MegaAVR
+F http://www.atmel.com/images/atmel-8271-8-bit-avr-microcontroller-atmega48a-48pa-88a-88pa-168a-168pa-328-328p_datasheet.pdf
+$ENDCMP
+#
+$CMP ATMEGA328P-P
+D ATMEGA328P, PDIP28 Narrow, 32k Flash, 2kB SRAM, 1kB EEPROM
+K AVR 8bit Microcontroller MegaAVR PicoPower
+F http://www.atmel.com/images/atmel-8271-8-bit-avr-microcontroller-atmega48a-48pa-88a-88pa-168a-168pa-328-328p_datasheet.pdf
+$ENDCMP
+#
+$CMP ATMEGA48A-P
+D ATMEGA48A, PDIP28 Narrow, 4k Flash, 512B SRAM, 256B EEPROM
+K AVR 8bit Microcontroller MegaAVR
+F http://www.atmel.com/images/atmel-8271-8-bit-avr-microcontroller-atmega48a-48pa-88a-88pa-168a-168pa-328-328p_datasheet.pdf
+$ENDCMP
+#
+$CMP ATMEGA48PA-P
+D ATMEGA48PA, PDIP28 Narrow, 4k Flash, 512B SRAM, 256B EEPROM
+K AVR 8bit Microcontroller MegaAVR PicoPower
+F http://www.atmel.com/images/atmel-8271-8-bit-avr-microcontroller-atmega48a-48pa-88a-88pa-168a-168pa-328-328p_datasheet.pdf
+$ENDCMP
+#
+$CMP ATMEGA88A-P
+D ATMEGA88A, PDIP28 Narrow, 8k Flash, 1kB SRAM, 512B EEPROM
+K AVR 8bit Microcontroller MegaAVR
+F http://www.atmel.com/images/atmel-8271-8-bit-avr-microcontroller-atmega48a-48pa-88a-88pa-168a-168pa-328-328p_datasheet.pdf
+$ENDCMP
+#
+$CMP ATMEGA88PA-P
+D ATMEGA88PA, PDIP28 Narrow, 8k Flash, 1kB SRAM, 512B EEPROM
+K AVR 8bit Microcontroller MegaAVR PicoPower
+F http://www.atmel.com/images/atmel-8271-8-bit-avr-microcontroller-atmega48a-48pa-88a-88pa-168a-168pa-328-328p_datasheet.pdf
+$ENDCMP
+#
+#End Doc Library

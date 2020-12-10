@@ -1,0 +1,28 @@
+* If possible, use PCB Matrix LP Calculator 2010.0.0 to calculate geometry and module name. Attempt to make A(Most), B(Nominal), C(Least), P(Proportional) footprints, U(User: Silk & Courtyard from A(Most), Drill from C(Least), pad 2.12mm x 1.7mm w/ 0.21mm offset or similar effect). Print datasheets and put in footprints_doc folder.
+
+* Silkscreen width = 8 mil (0.2032 mm), Ref'd character geomotry = 50 mil x 50 mil (1.27 mm x 1.27 mm)
+
+  (fp_text reference REF** (at 0 0) (layer F.SilkS)
+    (effects (font (size 1.27 1.27) (thickness 0.2032)))
+  )
+
+
+* Assembly width = 3 mil (0.0762 mm) on F.Fab (was Drawing layer), Value character geomotry = 40 mil x 40 mil (1.016 mm x 1.016 mm)
+
+  (fp_text value VAL** (at 0 0) (layer F.Fab)
+    (effects (font (size 1.016 1.016) (thickness 0.0762)))
+  )
+
+
+* Courtyard width = 1 mil (0.0254 mm) on F.CrtYd (was Comments layer)
+
+* Assign padstack values directly in mm. _ALL_ pin1 pads should be square/rectangualar, all other pads circle/oval.
+
+* All placement units based on original drawing's controlled units.
+	* If placement in mils, round artwork to nearest 0.5 mil (0.0127 mm), pad placement as accurate as possible.
+	* If placement in mm, round artwork to nearest 0.01 mm (0.3937 mil), pad placememnt as accurate as possible.
+
+* Zero orientation of components shall conform to IPC-7351C "Level B", Pin 1 located on left side/lower left corner.
+
+
+* vias: 15 mil (0.381 mm) hole or 1/3 net width, whichever is larger, 31 mil (0.7874 mm) pad or whatever gets minimum 8 mil (0.2032 mm) annular ring (8 mil * 2 + drill)
