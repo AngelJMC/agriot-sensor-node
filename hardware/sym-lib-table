@@ -1,4 +1,4 @@
 (sym_lib_table
-  (lib (name Arduino)(type Legacy)(uri /home/angel/Proyectos/kicadlib/library/Arduino.lib)(options "")(descr ""))
-  (lib (name LoRaModule-rescue)(type Legacy)(uri ${KIPRJMOD}/LoRaModule-rescue.lib)(options "")(descr ""))
+  (lib (name Arduino)(type Legacy)(uri ${KIPRJMOD}/lib/arduino-modules/library/Arduino.lib)(options "")(descr ""))
+  (lib (name LoRaModule-rescue)(type Legacy)(uri ${KIPRJMOD}/lib/buck-converter/library/buck-dc.lib)(options "")(descr ""))
 )

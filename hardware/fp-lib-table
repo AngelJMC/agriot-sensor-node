@@ -1,4 +1,4 @@
 (fp_lib_table
-  (lib (name library)(type KiCad)(uri /home/angel/Proyectos/kicadlib/library.pretty)(options "")(descr ""))
-  (lib (name arduino_shields)(type KiCad)(uri /home/angel/Proyectos/kicadlib/modules/arduino_shields.pretty)(options "")(descr ""))
+  (lib (name library)(type KiCad)(uri ${KIPRJMOD}/lib/buck-converter/library.pretty)(options "")(descr ""))
+  (lib (name arduino_shields)(type KiCad)(uri ${KIPRJMOD}/lib/arduino-modules/modules/arduino_shields.pretty)(options "")(descr ""))
 )
