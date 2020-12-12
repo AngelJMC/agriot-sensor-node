@@ -1,5 +1,5 @@
 /*
-    Project: <https://github.com/AngelJMC/AGRIOT_lora-sensor-node>   
+    Project: <https://github.com/AngelJMC/agriot-sensor-node>   
     Copyright (c) 2020 Angel Maldonado <angelgesus@gmail.com>. 
     Licensed under the MIT License: <http://opensource.org/licenses/MIT>.
     SPDX-License-Identifier: MIT 
