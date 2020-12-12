@@ -1,5 +1,5 @@
 /*
-    Project: <https://github.com/AngelJMC/AGRIOT_lora-sensor-node>   
+    Project: <https://github.com/AngelJMC/agriot-sensor-node>   
     Copyright (c) 2020 Angel Maldonado <angelgesus@gmail.com>. 
     Licensed under the MIT License: <http://opensource.org/licenses/MIT>.
     SPDX-License-Identifier: MIT 
@@ -10,6 +10,8 @@
 #include "sensors.h"
 #include <SoftwareSerial.h>
 #include <MicroNMEA.h>
+#include <CayenneLPP.h>
+
 
 #define RX_GPS 4
 #define TX_GPS 3
@@ -17,10 +19,11 @@
 #define DEBUG_ON
 
 //Schedule sensore measurement every this senconds
-#define SENSOR_INTERVAL (30)//seconds
+#define SENSOR_INTERVAL (5*60)//seconds
 
 enum {
-    verbose = 0
+    verbose = 0,
+    cayenneLLP = 1
 };
 
 SoftwareSerial gps(RX_GPS, TX_GPS);
@@ -29,7 +32,7 @@ MicroNMEA nmea(nmeaBuffer, sizeof(nmeaBuffer));
 
 static osjob_t sensjob;
 static uint8_t payload[13];
-
+CayenneLPP lpp(51);
 
 static void sensors_update( osjob_t* j ) {
  
@@ -54,28 +57,12 @@ static void sensors_update( osjob_t* j ) {
     if ( nmea.isValid() & (nmea.getNavSystem() != '\0')) {
         /* Get GPS data*/
         int32_t const lat = nmea.getLatitude(); 
-        payload[0] = (byte) ((lat & 0xFF000000) >> 24 );
-        payload[1] = (byte) ((lat & 0x00FF0000) >> 16 );
-        payload[2] = (byte) ((lat & 0x0000FF00) >> 8 );
-        payload[3] = (byte) ((lat & 0X000000FF));
-
         int32_t const lon = nmea.getLongitude();
-        payload[4] = (byte) ((lon & 0xFF000000) >> 24 );
-        payload[5] = (byte) ((lon & 0x00FF0000) >> 16 );
-        payload[6] = (byte) ((lon & 0x0000FF00) >> 8 );
-        payload[7] = (byte) ((lon & 0X000000FF));
-
         long alt = 0;
         uint16_t altitude = nmea.getAltitude(alt) ? alt/1000 : 0;
-        payload[8] = (byte) ((altitude & 0xFF00) >> 8);
-        payload[9] = (byte) (altitude & 0x00FF);
-
         uint8_t const hdop = nmea.getHDOP();
-        payload[10] = (byte) hdop; 
-
         uint8_t const sats = nmea.getNumSatellites();
-        payload[11] = (byte) sats; 
-        
+
         SENSORS_PRINT_F("\n------GPS data ------\n");
         SENSORS_PRINT_F("Nav system: ");SENSORS_PRINTLN(nmea.getNavSystem());
         SENSORS_PRINT_F("latitude: ");  SENSORS_PRINTLN(lat);
@@ -85,8 +72,34 @@ static void sensors_update( osjob_t* j ) {
         SENSORS_PRINT_F("sats: ");      SENSORS_PRINTLN(sats);
         SENSORS_PRINT_F("-----------------\n");
 
-        /* Update Data Frame to Send */
-        protocol_updateDataFrame( payload, sizeof(payload) - 1 );
+        /*Send with cayenneLPP format*/
+        if( cayenneLLP ) {
+            lpp.reset();
+            float latitude  = (float)lat/1000000; 
+            float longitude = (float)lon/1000000;
+            long alt = 0;
+            float altitude = nmea.getAltitude(alt) ? (float)alt/1000 : 0;
+            lpp.addGPS(1, latitude, longitude, altitude );
+             /* Update Data Frame to Send */
+            protocol_updateDataFrame( lpp.getBuffer(), lpp.getSize() );
+        }
+        else {
+            payload[0] = (byte) ((lat & 0xFF000000) >> 24 );
+            payload[1] = (byte) ((lat & 0x00FF0000) >> 16 );
+            payload[2] = (byte) ((lat & 0x0000FF00) >> 8 );
+            payload[3] = (byte) ((lat & 0X000000FF));
+            payload[4] = (byte) ((lon & 0xFF000000) >> 24 );
+            payload[5] = (byte) ((lon & 0x00FF0000) >> 16 );
+            payload[6] = (byte) ((lon & 0x0000FF00) >> 8 );
+            payload[7] = (byte) ((lon & 0X000000FF));
+            payload[8] = (byte) ((altitude & 0xFF00) >> 8);
+            payload[9] = (byte) (altitude & 0x00FF);
+            payload[10] = (byte) hdop; 
+            payload[11] = (byte) sats; 
+            
+            /* Update Data Frame to Send */
+            protocol_updateDataFrame( payload, sizeof(payload) - 1 );
+        }
     }
     else {
         SENSORS_PRINT_F("NMEA not valid\n");
