@@ -121,6 +121,7 @@ ack_t parseCommands(AsyncSerial &serial ) {
                 int err = parseStringHex( cfg.appEUI, cmd, (APPEUI_SIZE*2)+2 );
                 if( err )
                     return ack;
+                cfg.otaajoin = true;
                 param_savecfg( );
             }
             
@@ -136,6 +137,7 @@ ack_t parseCommands(AsyncSerial &serial ) {
                 int err = parseStringHex( cfg.appkey, cmd, (APPKEY_SIZE*2)+2 );
                 if( err )
                     return ack;
+                cfg.otaajoin = true;
                 param_savecfg( );
             }
             

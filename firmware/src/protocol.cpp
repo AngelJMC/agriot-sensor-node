@@ -61,7 +61,7 @@ void os_getDevKey (u1_t* buf) {
     memcpy(buf, cfg.appkey, APPKEY_SIZE);
 }
 
-void os_send( osjob_t* j ) {
+static void os_send( osjob_t* j ) {
     // Check if there is not a current TX/RX job running
     digitalWrite( GPIO_LED, false );
 
@@ -82,32 +82,26 @@ void os_send( osjob_t* j ) {
     }
 }
 
-void protocol_checkSwitch(  ) {
-    uint8_t statusSwitch = digitalRead( GPIO_SWITCH );
-    if( !statusSwitch && lastStatuSwitch ) {
-        os_setCallback( &sendjob, os_send);
-    }
-    lastStatuSwitch = statusSwitch;
-    }
-  
-void protocol_init( ) {
-    // Reset the MAC state. Session and pending data transfers will be discarded.
-    os_avoidSleep();
-    LMIC_reset();
-    // Cause the RX windows to open earlier to accomodate issues caused by the 
-    // Arduino Mini's relatively slow (8 MHz) clock
-    LMIC_setClockError(MAX_CLOCK_ERROR * 5 / 100);
-
-    pinMode( GPIO_SWITCH, INPUT ); 
-    pinMode( GPIO_LED, OUTPUT );
-
-    LMIC_startJoining ();
+static void start_send( void ) {
+    LMIC_setLinkCheckMode(0);
+    sendAck = 0;
+    os_acceptSleep();
+    digitalWrite( GPIO_LED, true );
+    os_send( &sendjob );
 }
 
-void protocol_updateDataFrame( uint8_t* buff, uint8_t size ) {
-    txdata.buff = buff;
-    txdata.size = size;
-    os_send( &sendjob );
+
+static void saveToMemory( void ) {
+
+    if ( ( LMIC.seqnoUp % 100 == 0 ) || cfg.otaajoin )           {
+        Serial.println ( "Saving to EEPROM" ) ;
+        cfg.devaddr = LMIC.devaddr;  
+        memcpy ( cfg.nwkskey,  LMIC.nwkKey, NWKSKEY_SIZE ) ;
+        memcpy ( cfg.appskey,  LMIC.artKey, APPSKEY_SIZE ) ;
+        cfg.seqnoUp = LMIC.seqnoUp ;
+        cfg.otaajoin = false;
+        param_savecfg( );
+    }
 }
 
 void onEvent (ev_t ev) {
@@ -127,18 +121,10 @@ void onEvent (ev_t ev) {
             PROTOCOL_PRINTLN(F("EV_BEACON_TRACKED"));
             break;
         case EV_JOINING:
-            /* Set default/start data rate  and transmit power for uplink*/
-            LMIC_setDrTxpow(DR_SF9,14);
-            /* set ADR mode (if mobile turn off) */
-            LMIC_setAdrMode(1);
             PROTOCOL_PRINTLN(F("EV_JOINING"));
             break;
         case EV_JOINED:
-            LMIC_setLinkCheckMode(0);
-            sendAck = 0;
-            os_acceptSleep();
-            digitalWrite( GPIO_LED, true );
-            os_send( &sendjob );
+            start_send( );
             PROTOCOL_PRINTLN(F("EV_JOINED"));
             break;
         case EV_JOIN_FAILED:
@@ -161,6 +147,7 @@ void onEvent (ev_t ev) {
                 PROTOCOL_PRINTLN(F(" bytes of payload"));
             }
             LMIC_setLinkCheckMode(0);
+            saveToMemory( );
             Serial.flush();
             os_acceptSleep();
             break;
@@ -182,3 +169,51 @@ void onEvent (ev_t ev) {
             break;
     }
 }
+
+
+void protocol_init( ) {
+
+    os_avoidSleep();
+    pinMode( GPIO_SWITCH, INPUT ); 
+    pinMode( GPIO_LED, OUTPUT );
+    
+    /* Reset the MAC state. Session and pending data transfers will be discarded.*/
+    LMIC_reset();
+    /* Cause the RX windows to open earlier to accomodate issues caused by the 
+       Arduino Mini's relatively slow (8 MHz) clock */
+    LMIC_setClockError(MAX_CLOCK_ERROR * 5 / 100);
+    /* Set default/start data rate  and transmit power for uplink*/
+    LMIC_setDrTxpow(DR_SF9,14);
+    /* set ADR mode (if mobile turn off) */
+    LMIC_setAdrMode(1);
+
+    if ( cfg.otaajoin ) {
+      // start joining
+      Serial.println ( "Start joining" );
+      LMIC_startJoining();
+    }
+    else {
+      Serial.println ( "Set session" );
+      LMIC_setSession ( 0x1, cfg.devaddr, cfg.nwkskey, cfg.appskey ) ;
+      cfg.seqnoUp += 100;
+      LMIC.seqnoUp = cfg.seqnoUp;                      // Correction counter
+      start_send( );
+    }
+}
+
+void protocol_checkSwitch( void ) {
+    uint8_t statusSwitch = digitalRead( GPIO_SWITCH );
+    if( !statusSwitch && lastStatuSwitch ) {
+        os_setCallback( &sendjob, os_send);
+    }
+    lastStatuSwitch = statusSwitch;
+}
+
+
+void protocol_updateDataFrame( uint8_t* buff, uint8_t size ) {
+    txdata.buff = buff;
+    txdata.size = size;
+    os_send( &sendjob );
+}
+
+
