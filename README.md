@@ -3,9 +3,6 @@
 [![Build Status](https://travis-ci.com/AngelJMC/agriot-sensor-node.svg?token=mBm38UE3LUhsHEuAm8bp&branch=master)](https://travis-ci.com/AngelJMC/agriot-sensor-node)
 
 
-
-
-## General info
 The aim of this project is to provide an Open Source hardware/software platform for the rapid and low-cost development of LoRaWAN sensor nodes. It consists of an [Arduino Pro Mini][4] module, a LoRa [RMF95W][5] communications module, a Buck DC-DC converter and a few components to simplify connection to different sensors.
 
 
