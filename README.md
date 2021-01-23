@@ -1,5 +1,6 @@
 # AGRIOT LoraWAN sensor node
 
+[![](https://img.shields.io/badge/Buy%20me%20-coffee!-orange.svg?logo=buy-me-a-coffee&color=795548)](https://www.buymeacoffee.com/angeljmc)
 [![Build Status](https://travis-ci.com/AngelJMC/agriot-sensor-node.svg?token=mBm38UE3LUhsHEuAm8bp&branch=master)](https://travis-ci.com/AngelJMC/agriot-sensor-node)
 
 
