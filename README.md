@@ -63,9 +63,9 @@ $ git submodule update --init --recursive
 ### Directory Structure
 
     .
-    ├── docs          # Documentation files
-    ├── firmware      # FW source code (Visual Studio Code)
-    ├── hardware      # HW design files (Kicad)
+    ??? docs          # Documentation files
+    ??? firmware      # FW source code (Visual Studio Code)
+    ??? hardware      # HW design files (Kicad)
     
 
 ## Firmware
