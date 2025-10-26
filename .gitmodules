@@ -34,3 +34,6 @@
 [submodule "firmware/lib/MicroNMEA"]
 	path = firmware/lib/MicroNMEA
 	url = https://github.com/stevemarple/MicroNMEA
+[submodule "firmware/lib/HX711"]
+	path = firmware/lib/HX711
+	url = https://github.com/bogde/HX711/

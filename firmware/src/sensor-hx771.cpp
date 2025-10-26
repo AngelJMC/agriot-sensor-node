@@ -1,0 +1,70 @@
+/*
+    Project: <https://github.com/AngelJMC/agriot-sensor-node>   
+    Copyright (c) 2020 Angel Maldonado <angelgesus@gmail.com>. 
+    Licensed under the MIT License: <http://opensource.org/licenses/MIT>.
+    SPDX-License-Identifier: MIT 
+*/
+
+#ifdef SENS_HX771
+#include "protocol.h"
+#include "DHT_U.h"
+
+#include "HX711.h"
+#include "sensors.h"
+#include <CayenneLPP.h>
+
+//Schedule sensore measurement every this senconds
+#define SENSOR_INTERVAL (2.5*60)//seconds
+
+static osjob_t sensjob;
+CayenneLPP lpp(51);
+
+// HX711 circuit wiring
+const int LOADCELL_DOUT_PIN = A4;
+const int LOADCELL_SCK_PIN = A5;
+
+DHT dht( 4, DHT22 ); 
+
+HX711 scale;
+
+static void sensors_update( osjob_t* j ) {
+    os_avoidSleep();
+    long reading = 0;
+    if (scale.wait_ready_timeout(1000)) {
+        reading = scale.read();
+        Serial.print("HX711 reading: ");
+        Serial.println(reading);
+    } else {
+        Serial.println("HX711 not found.");
+    }
+    
+    float t = dht.readTemperature( ); // Read temperature as Celsius
+    float h = dht.readHumidity( );
+
+    float value = reading /10000.0;
+    SENSORS_PRINT_F("Value: "); SENSORS_PRINT(value); SENSORS_PRINT_F(" ");
+    SENSORS_PRINT_F("Temperature: "); SENSORS_PRINT(t); SENSORS_PRINT_F(" *C ");
+    SENSORS_PRINT_F("Humidity: ");    SENSORS_PRINT(h); SENSORS_PRINT_F(" %\t\n");
+    
+    /* Update Data Frame to Send */
+    lpp.reset();
+    lpp.addTemperature(1, t);
+    lpp.addRelativeHumidity(2, h);
+    lpp.addAnalogInput(3, value);
+    protocol_updateDataFrame( lpp.getBuffer(), lpp.getSize() );
+    /* Schedule next sensor reading */
+    os_setTimedCallback( &sensjob, os_getTime() + sec2osticks(SENSOR_INTERVAL), sensors_update );
+    Serial.flush();
+    os_acceptSleep();
+}
+
+void sensors_init( ) {
+
+    scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+    dht.begin();
+    delay(1000);
+    /* Schedule the first sensor reading*/
+    os_setTimedCallback(&sensjob, os_getTime() + sec2osticks(10), sensors_update);
+}
+
+#endif
